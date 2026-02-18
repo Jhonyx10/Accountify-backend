@@ -108,4 +108,18 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class, 'user_id');
     }
+
+    /**
+     * Get the creator ID for multi-tenancy
+     * If user is company or super admin, return their own ID
+     * Otherwise return the ID of the user who created them
+     */
+    public function creatorId()
+    {
+        if ($this->type == 'company' || $this->type == 'super admin') {
+            return $this->id;
+        } else {
+            return $this->created_by;
+        }
+    }
 }
