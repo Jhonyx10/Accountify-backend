@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BillController;
 use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ChartOfAccountTypeController;
+use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\ContractTypeController;
 use App\Http\Controllers\Api\CouponController;
@@ -20,9 +21,11 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\JournalEntryController;
+use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\NotificationTemplateController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PdfExportController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanRequestController;
@@ -32,6 +35,7 @@ use App\Http\Controllers\Api\ProductServiceUnitController;
 use App\Http\Controllers\Api\ProductStockController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\ReferralProgramController;
 use App\Http\Controllers\Api\RetainerController;
 use App\Http\Controllers\Api\RevenueController;
 use App\Http\Controllers\Api\RoleController;
@@ -40,9 +44,12 @@ use App\Http\Controllers\Api\TaxController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UsersLogController;
 use App\Http\Controllers\Api\VenderController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\Api\BenefitPaymentController;
+use App\Http\Controllers\Api\AiTemplateController;
+
 
 // Public routes
 Route::get('/health', function () {
@@ -71,6 +78,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // User Management
     Route::apiResource('users', UserController::class);
+
+    // Company Management (Super Admin)
+    Route::apiResource('companies', CompanyController::class);
 
     // Role & Permission Management
     Route::apiResource('roles', RoleController::class);
@@ -205,5 +215,39 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('notification-templates/slug/{slug}', [NotificationTemplateController::class, 'getBySlug']);
     Route::post('notification-templates/{id}/language', [NotificationTemplateController::class, 'updateLanguage']);
     Route::apiResource('notification-templates', NotificationTemplateController::class);
+
+    // Language / Localization
+    Route::get('languages', [LanguageController::class, 'index']);
+    Route::get('languages/{code}', [LanguageController::class, 'getTranslations']);
+    Route::post('languages', [LanguageController::class, 'store']);
+    Route::post('languages/change', [LanguageController::class, 'changeLanguage']);
+
+    // Referral Program
+    Route::get('referrals', [ReferralProgramController::class, 'index']);
+    Route::get('referral-settings', [ReferralProgramController::class, 'settings']);
+    Route::post('referral-settings', [ReferralProgramController::class, 'settings']);
+
+    // Webhooks
+    Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'destroy']);
+
+    // User Logs
+    Route::get('users-logs', [UsersLogController::class, 'index']);
+    Route::delete('users-logs/{id}', [UsersLogController::class, 'destroy']);
+
+    // PDF Exports
+    Route::get('pdf/invoice/{id}', [PdfExportController::class, 'invoice']);
+    Route::get('pdf/bill/{id}', [PdfExportController::class, 'bill']);
+    Route::get('pdf/proposal/{id}', [PdfExportController::class, 'proposal']);
+    Route::get('pdf/retainer/{id}', [PdfExportController::class, 'retainer']);
+
+    // AI Templates
+    Route::post('ai-generate', [AiTemplateController::class, 'generate']);
+
+    // Payments Providers (Placeholders)
+    Route::post('benefit-payment/invoice/{id}', [BenefitPaymentController::class, 'invoicePayWithBenefit']);
+    Route::post('benefit-payment/retainer/{id}', [BenefitPaymentController::class, 'retainerPayWithBenefit']);
 });
+
+// Payment Gateway Callbacks
+Route::any('benefit-payment/callback', [BenefitPaymentController::class, 'call_back']);
 
