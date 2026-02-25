@@ -48,6 +48,8 @@ use App\Http\Controllers\Api\VenderController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\BenefitPaymentController;
 use App\Http\Controllers\Api\AiTemplateController;
+use App\Http\Controllers\Api\POController;
+use App\Http\Controllers\Api\WriteCheckController;
 
 
 // Public routes
@@ -110,6 +112,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Expenses
     Route::apiResource('expenses', ExpenseController::class);
+
+    // Purchase Orders
+    Route::apiResource('purchase-orders', POController::class);
+
+    // Write Checks
+    Route::apiResource('write-checks', WriteCheckController::class);
 
     // Revenues
     Route::apiResource('revenues', RevenueController::class);
