@@ -18,7 +18,6 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DebitNoteController;
 use App\Http\Controllers\Api\EmailTemplateController;
 use App\Http\Controllers\Api\ExpenseController;
-use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\JournalEntryController;
 use App\Http\Controllers\Api\LanguageController;
@@ -144,9 +143,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Contract Management
     Route::apiResource('contracts', ContractController::class);
-
-    // Goal Management
-    Route::apiResource('goals', GoalController::class);
 
     // Custom Field Management
     Route::apiResource('custom-fields', CustomFieldController::class);
