@@ -17,4 +17,14 @@ class PurchaseOrder extends Model
         'discount_apply',
         'created_by'
     ];
+
+    public function vender()
+    {
+        return $this->belongsTo(Vender::class, 'vender_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(PurchaseOrderProduct::class, 'purchase_order_id');
+    }
 }

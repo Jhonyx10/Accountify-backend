@@ -137,5 +137,27 @@ class PlanRequestController extends Controller
             'message' => 'Plan request deleted successfully'
         ]);
     }
+
+    /**
+     * Approve the plan request
+     */
+    public function approve(string $id)
+    {
+        $planRequest = PlanRequest::findOrFail($id);
+
+        // Find the company (user) and update their plan
+        $company = \App\Models\User::findOrFail($planRequest->user_id);
+        $company->plan = $planRequest->plan_id;
+        $company->save();
+
+        // Optional: Create an order or transaction here
+
+        // Delete the request
+        $planRequest->delete();
+
+        return response()->json([
+            'message' => 'Plan request approved successfully'
+        ]);
+    }
 }
 

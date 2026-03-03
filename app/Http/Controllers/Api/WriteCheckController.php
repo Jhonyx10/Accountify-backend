@@ -21,7 +21,11 @@ class WriteCheckController extends Controller
         }
 
         $perPage = $request->input('per_page', 15);
-        $checks = $query->latest()->paginate($perPage);
+        $checks = $query->with(['bankAccount', 'items'])->latest()->paginate($perPage);
+
+        foreach ($checks as $check) {
+            $check->payee_name = $check->payee ? $check->payee->name ?? $check->payee->first_name ?? '' : null;
+        }
 
         return WriteCheckResource::collection($checks);
     }

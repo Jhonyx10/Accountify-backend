@@ -206,6 +206,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('coupons', CouponController::class);
 
     // Plan Requests
+    Route::post('plan-requests/{id}/approve', [PlanRequestController::class, 'approve']);
     Route::apiResource('plan-requests', PlanRequestController::class);
 
     // Orders

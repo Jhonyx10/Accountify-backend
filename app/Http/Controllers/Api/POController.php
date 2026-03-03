@@ -21,7 +21,7 @@ class POController extends Controller
         }
 
         $perPage = $request->input('per_page', 15);
-        $pos = $query->latest()->paginate($perPage);
+        $pos = $query->with(['vender', 'items'])->latest()->paginate($perPage);
 
         return POResource::collection($pos);
     }

@@ -14,6 +14,25 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'type' => $this->type,
+            'lang' => $this->lang,
+            'mode' => $this->mode,
+            'plan' => $this->plan,
+            'is_active' => $this->is_active,
+            'is_enable_login' => $this->is_enable_login,
+            // Computed human-readable status
+            'status' => $this->is_active
+                ? 'Active'
+                : ($this->is_enable_login ? 'Inactive' : 'Suspended'),
+            'contact' => $this->contact ?? null,
+            'created_by' => $this->created_by,
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'current_plan' => $this->whenLoaded('currentPlan'),
+        ];
     }
 }
