@@ -122,4 +122,9 @@ class User extends Authenticatable
             return $this->created_by;
         }
     }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 }

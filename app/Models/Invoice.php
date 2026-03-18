@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToCompany;
 
 class Invoice extends Model
 {
     use HasFactory;
+    use BelongsToCompany;
 
     protected $fillable = [
         'invoice_id',
