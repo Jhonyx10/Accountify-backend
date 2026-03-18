@@ -142,6 +142,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Proposal Management
     Route::apiResource('proposals', ProposalController::class);
+    Route::put('proposals/{id}/status', [ProposalController::class, 'updateStatus']);
+    Route::post('proposals/{id}/convert-to-invoice', [ProposalController::class, 'convertToInvoice']);
 
     // Retainer Management
     Route::apiResource('retainers', RetainerController::class);
