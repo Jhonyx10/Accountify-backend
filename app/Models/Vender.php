@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Traits\BelongsToCompany;
 
 class Vender extends Authenticatable
 {
     use HasFactory;
+    use BelongsToCompany;
 
     protected $fillable = [
         'vender_id',
