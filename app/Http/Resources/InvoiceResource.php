@@ -14,6 +14,19 @@ class InvoiceResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $subtotal = 0;
+        $totalTax = 0;
+
+        if ($this->relationLoaded('products')) {
+            foreach ($this->products as $product) {
+                $itemSubtotal = $product->quantity * $product->price;
+                $subtotal += $itemSubtotal;
+                $totalTax += $itemSubtotal * ((float)$product->tax / 100);
+            }
+        }
+
+        $grandTotal = $subtotal + $totalTax;
+
         return [
             'id' => $this->id,
             'invoice_id' => $this->invoice_id,
@@ -24,8 +37,12 @@ class InvoiceResource extends JsonResource
             'category_id' => $this->category_id,
             'ref_number' => $this->ref_number,
             'status' => $this->status,
+            'notes' => $this->notes,
             'shipping_display' => $this->shipping_display,
             'discount_apply' => $this->discount_apply,
+            'subtotal' => $subtotal,
+            'total_tax' => $totalTax,
+            'grand_total' => $grandTotal,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'customer' => $this->whenLoaded('customer', function () {

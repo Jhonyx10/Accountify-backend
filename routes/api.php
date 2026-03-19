@@ -94,6 +94,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('venders', VenderController::class);
 
     // Invoice Management
+    Route::post('invoices/{id}/send', [InvoiceController::class, 'send']);
     Route::apiResource('invoices', InvoiceController::class);
 
     // Bill Management

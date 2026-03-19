@@ -21,6 +21,7 @@ class Invoice extends Model
         'shipping_display',
         'discount_apply',
         'created_by',
+        'notes',
     ];
 
     protected $casts = [

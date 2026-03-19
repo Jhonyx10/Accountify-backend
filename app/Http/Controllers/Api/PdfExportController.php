@@ -20,20 +20,33 @@ class PdfExportController extends Controller
         $user = $request->user();
 
         $invoice = Invoice::where('created_by', $user->creatorId())
-            ->with(['payments', 'items', 'customer'])
+            ->with(['payments', 'products', 'customer'])
             ->findOrFail($id);
 
-        $data = ['invoice' => $invoice];
+        // Fetch settings for branding
+        $settings = \App\Models\Setting::where('created_by', $user->creatorId())
+            ->pluck('value', 'name')
+            ->toArray();
 
-        // This requires installing barryvdh/laravel-dompdf
-        // $pdf = Pdf::loadView('pdf.invoice', $data);
-        // return $pdf->download('invoice-' . $invoice->invoice_id . '.pdf');
+        // Calculate totals
+        $subtotal = 0;
+        $totalTax = 0;
+        foreach ($invoice->products as $product) {
+            $itemSubtotal = $product->quantity * $product->price;
+            $subtotal += $itemSubtotal;
+            $totalTax += $itemSubtotal * ((float)$product->tax / 100);
+        }
+        $invoice->subtotal = $subtotal;
+        $invoice->total_tax = $totalTax;
+        $invoice->grand_total = $subtotal + $totalTax;
 
-        return response()->json([
-            'success' => false,
-            'message' => 'PDF generation logic pending DOMPDF view creation',
-            'data' => $data
-        ], 501);
+        $data = [
+            'invoice' => $invoice,
+            'settings' => $settings,
+        ];
+
+        $pdf = Pdf::loadView('pdf.invoice', $data);
+        return $pdf->download('Invoice-' . str_pad($invoice->invoice_id, 5, '0', STR_PAD_LEFT) . '.pdf');
     }
 
     /**
