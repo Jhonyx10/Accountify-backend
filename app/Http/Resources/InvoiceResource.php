@@ -31,8 +31,13 @@ class InvoiceResource extends JsonResource
         if ($this->relationLoaded('payments')) {
             $totalPaid = $this->payments->sum('amount');
         }
+
+        $totalCredits = 0;
+        if ($this->relationLoaded('creditNotes')) {
+            $totalCredits = $this->creditNotes->sum('amount');
+        }
         
-        $balanceDue = max(0, $grandTotal - $totalPaid);
+        $balanceDue = max(0, $grandTotal - $totalPaid - $totalCredits);
 
         return [
             'id' => $this->id,
@@ -51,6 +56,7 @@ class InvoiceResource extends JsonResource
             'total_tax' => $totalTax,
             'grand_total' => $grandTotal,
             'total_paid' => $totalPaid,
+            'total_credits' => $totalCredits,
             'balance_due' => $balanceDue,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
@@ -69,6 +75,7 @@ class InvoiceResource extends JsonResource
             }),
             'products' => $this->whenLoaded('products'),
             'payments' => $this->whenLoaded('payments'),
+            'credit_notes' => $this->whenLoaded('creditNotes'),
         ];
     }
 }

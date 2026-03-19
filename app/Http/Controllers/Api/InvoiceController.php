@@ -15,7 +15,7 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with(['customer', 'creator', 'category', 'products', 'payments']);
+        $query = Invoice::with(['customer', 'creator', 'category', 'products', 'payments', 'creditNotes']);
 
         // Filter by created_by (multi-tenancy)
         if ($request->user()) {
@@ -125,7 +125,7 @@ class InvoiceController extends Controller
      */
     public function show(string $id)
     {
-        $invoice = Invoice::with(['customer', 'creator', 'products', 'payments'])->findOrFail($id);
+        $invoice = Invoice::with(['customer', 'creator', 'products', 'payments', 'creditNotes'])->findOrFail($id);
 
         return new InvoiceResource($invoice);
     }

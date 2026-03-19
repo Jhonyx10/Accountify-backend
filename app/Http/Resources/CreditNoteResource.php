@@ -21,6 +21,8 @@ class CreditNoteResource extends JsonResource
             'amount' => $this->amount,
             'date' => $this->date?->format('Y-m-d'),
             'description' => $this->description,
+            'reference' => $this->reference,
+            'status' => $this->status,
             'invoice_data' => $this->whenLoaded('invoiceRelation', function () {
                 return [
                     'id' => $this->invoiceRelation->id,

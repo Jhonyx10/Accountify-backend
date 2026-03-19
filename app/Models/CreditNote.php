@@ -16,6 +16,8 @@ class CreditNote extends Model
         'amount',
         'date',
         'description',
+        'reference',
+        'status',
     ];
 
     protected function casts(): array
