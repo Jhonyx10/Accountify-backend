@@ -15,7 +15,7 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with(['customer', 'creator', 'category', 'products']);
+        $query = Invoice::with(['customer', 'creator', 'category', 'products', 'payments']);
 
         // Filter by created_by (multi-tenancy)
         if ($request->user()) {

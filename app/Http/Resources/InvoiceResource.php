@@ -27,6 +27,13 @@ class InvoiceResource extends JsonResource
 
         $grandTotal = $subtotal + $totalTax;
 
+        $totalPaid = 0;
+        if ($this->relationLoaded('payments')) {
+            $totalPaid = $this->payments->sum('amount');
+        }
+        
+        $balanceDue = max(0, $grandTotal - $totalPaid);
+
         return [
             'id' => $this->id,
             'invoice_id' => $this->invoice_id,
@@ -43,6 +50,8 @@ class InvoiceResource extends JsonResource
             'subtotal' => $subtotal,
             'total_tax' => $totalTax,
             'grand_total' => $grandTotal,
+            'total_paid' => $totalPaid,
+            'balance_due' => $balanceDue,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'customer' => $this->whenLoaded('customer', function () {
