@@ -103,10 +103,21 @@ class CompanyController extends Controller
         }
 
         $company = User::where('type', 'company')
-            ->with(['currentPlan'])
+            ->with(['currentPlan', 'orders' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            }])
             ->findOrFail($id);
 
-        return new UserResource($company);
+        return (new UserResource($company))
+            ->additional([
+                'usage' => [
+                    'users' => $company->createdUsers()->count(),
+                    'customers' => $company->customers()->count(),
+                    'venders' => $company->vendors()->count(),
+                ],
+                'billing_history' => $company->orders,
+                'company_users' => $company->createdUsers()->select('id', 'name', 'email', 'type as role')->get(),
+            ]);
     }
 
     /**
@@ -158,7 +169,7 @@ class CompanyController extends Controller
     }
 
     /**
-     * Remove the specified company.
+     * Remove the specified company (Soft Delete).
      */
     public function destroy(Request $request, string $id)
     {
@@ -170,13 +181,80 @@ class CompanyController extends Controller
 
         $company = User::where('type', 'company')->findOrFail($id);
 
-        // Delete related company data (or use soft deletes / cascading)
-        // User::where('created_by', $company->id)->delete();
-        
+        // Soft delete the company
         $company->delete();
 
         return response()->json([
             'message' => 'Company deleted successfully'
+        ]);
+    }
+
+    /**
+     * Suspend the specified company.
+     */
+    public function suspend(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'super admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $company = User::where('type', 'company')->findOrFail($id);
+        $company->update([
+            'is_active' => 0,
+            'is_enable_login' => 0
+        ]);
+
+        return response()->json([
+            'message' => 'Company suspended successfully',
+            'data' => new UserResource($company)
+        ]);
+    }
+
+    /**
+     * Activate the specified company.
+     */
+    public function activate(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'super admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $company = User::where('type', 'company')->findOrFail($id);
+        $company->update([
+            'is_active' => 1,
+            'is_enable_login' => 1
+        ]);
+
+        return response()->json([
+            'message' => 'Company activated successfully',
+            'data' => new UserResource($company)
+        ]);
+    }
+
+    /**
+     * Impersonate the specified company admin.
+     */
+    public function impersonate(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'super admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $company = User::where('type', 'company')->findOrFail($id);
+        
+        // Generate a new token for the company user
+        $token = $company->createToken('impersonation-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Impersonation token generated',
+            'token' => $token,
+            'user' => new UserResource($company)
         ]);
     }
 }

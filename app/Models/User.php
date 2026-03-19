@@ -8,9 +8,11 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -121,5 +123,10 @@ class User extends Authenticatable
         } else {
             return $this->created_by;
         }
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 }

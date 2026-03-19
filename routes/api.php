@@ -81,6 +81,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('users', UserController::class);
 
     // Company Management (Super Admin)
+    Route::post('companies/{id}/suspend', [CompanyController::class, 'suspend']);
+    Route::post('companies/{id}/activate', [CompanyController::class, 'activate']);
+    Route::post('companies/{id}/impersonate', [CompanyController::class, 'impersonate']);
     Route::apiResource('companies', CompanyController::class);
 
     // Role & Permission Management
