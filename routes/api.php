@@ -118,7 +118,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('expenses', ExpenseController::class);
 
     // Purchase Orders
+    Route::post('purchase-orders/{id}/convert-to-bill', [POController::class, 'convertToBill']);
     Route::apiResource('purchase-orders', POController::class);
+
 
     // Write Checks
     Route::apiResource('write-checks', WriteCheckController::class);
