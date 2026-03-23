@@ -1,9 +1,10 @@
 <?php
-
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BankAccountController;
 use App\Http\Controllers\Api\BillController;
+use App\Http\Controllers\Api\BillPaymentController;
 use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ChartOfAccountTypeController;
@@ -98,6 +99,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Bill Management
     Route::apiResource('bills', BillController::class);
+    Route::get('bills/{bill}/payments', [BillPaymentController::class, 'index']);
+    Route::post('bills/{bill}/payments', [BillPaymentController::class, 'store']);
+    Route::delete('bills/{bill}/payments/{payment}', [BillPaymentController::class, 'destroy']);
 
     // Product & Service Management
     Route::apiResource('products', ProductServiceController::class);

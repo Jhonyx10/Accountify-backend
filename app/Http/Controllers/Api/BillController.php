@@ -99,7 +99,7 @@ class BillController extends Controller
 
     public function show(string $id)
     {
-        $bill = Bill::with(['vender', 'creator', 'products', 'payments'])->findOrFail($id);
+        $bill = Bill::with(['vender', 'creator', 'products', 'payments.account'])->findOrFail($id);
 
         return new BillResource($bill);
     }
