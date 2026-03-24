@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
+use App\Models\Bill;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Order;
@@ -137,8 +138,11 @@ class DashboardController extends Controller
             'categories' => ProductServiceCategory::where('created_by', $creatorId)->count(),
             'units' => ProductServiceUnit::where('created_by', $creatorId)->count(),
             'bank_accounts' => BankAccount::where('created_by', $creatorId)->count(),
-            'customers' => Customer::where('created_by', $creatorId)->count(),
-            'vendors' => Vender::where('created_by', $creatorId)->count(),
+            'invoices' => Invoice::where('created_by', $creatorId)->count(),
+            'bills' => Bill::where('created_by', $creatorId)->count(),
+            'revenue' => Revenue::where('created_by', $creatorId)->sum('amount'),
+            'expense' => Payment::where('created_by', $creatorId)->sum('amount'),
+            'pending_invoices' => Invoice::where('created_by', $creatorId)->where('status', '!=', 4)->count(),
         ];
 
         // Bank Account Details

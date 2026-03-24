@@ -19,11 +19,15 @@ class ChartOfAccountTypeController extends Controller
         $user = Auth::user();
         $creatorId = $user->creatorId();
 
-        $query = ChartOfAccountType::with('creator')->withCount('chartOfAccounts');
+        $query = ChartOfAccountType::with(['creator', 'subTypes'])->withCount('chartOfAccounts');
 
         // Multi-tenancy filtering
+        // Standard types are created_by = 0, so we should allow created_by = 0 or creatorId
         if ($user->type != 'super admin') {
-            $query->where('created_by', $creatorId);
+            $query->where(function($q) use ($creatorId) {
+                $q->where('created_by', $creatorId)
+                  ->orWhere('created_by', 0);
+            });
         }
 
         // Search by name
@@ -33,9 +37,13 @@ class ChartOfAccountTypeController extends Controller
         }
 
         $perPage = $request->input('per_page', 15);
-        $types = $query->latest()->paginate($perPage);
-
-        return ChartOfAccountTypeResource::collection($types);
+        if ($perPage == -1) {
+            $types = $query->get();
+            return ChartOfAccountTypeResource::collection($types);
+        } else {
+            $types = $query->latest()->paginate($perPage);
+            return ChartOfAccountTypeResource::collection($types);
+        }
     }
 
     /**

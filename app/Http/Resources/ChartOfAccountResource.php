@@ -23,6 +23,7 @@ class ChartOfAccountResource extends JsonResource
             'parent' => $this->parent,
             'is_enabled' => $this->is_enabled,
             'description' => $this->description,
+            'balance' => $this->balance,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'account_type' => $this->whenLoaded('accountType'),
