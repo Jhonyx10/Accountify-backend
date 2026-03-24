@@ -24,10 +24,7 @@ class ChartOfAccountTypeController extends Controller
         // Multi-tenancy filtering
         // Standard types are created_by = 0, so we should allow created_by = 0 or creatorId
         if ($user->type != 'super admin') {
-            $query->where(function($q) use ($creatorId) {
-                $q->where('created_by', $creatorId)
-                  ->orWhere('created_by', 0);
-            });
+            $query->whereIn('created_by', [$creatorId, 0]);
         }
 
         // Search by name
