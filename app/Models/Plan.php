@@ -23,6 +23,7 @@ class Plan extends Model
         'trial',
         'trial_days',
         'is_disable',
+        'max_invoices',
     ];
 
     protected $casts = [
@@ -33,6 +34,7 @@ class Plan extends Model
         'storage_limit' => 'float',
         'trial' => 'integer',
         'is_disable' => 'integer',
+        'max_invoices' => 'integer',
     ];
 
     // Relationships
