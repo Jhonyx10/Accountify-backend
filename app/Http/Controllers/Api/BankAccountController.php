@@ -29,7 +29,11 @@ class BankAccountController extends Controller
 
         // Pagination
         $perPage = $request->input('per_page', 15);
-        $bankAccounts = $query->with(['creator', 'chartAccount'])->paginate($perPage);
+        if ($perPage == -1) {
+            $bankAccounts = $query->with(['creator', 'chartAccount.journalItems'])->get();
+        } else {
+            $bankAccounts = $query->with(['creator', 'chartAccount.journalItems'])->paginate($perPage);
+        }
 
         return BankAccountResource::collection($bankAccounts);
     }
@@ -64,7 +68,7 @@ class BankAccountController extends Controller
             'created_by' => $request->user()->creatorId(),
         ]);
 
-        return (new BankAccountResource($bankAccount->load(['creator', 'chartAccount'])))
+        return (new BankAccountResource($bankAccount->load(['creator', 'chartAccount.journalItems'])))
             ->additional(['message' => 'Bank account created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -76,7 +80,7 @@ class BankAccountController extends Controller
     public function show(Request $request, string $id)
     {
         $bankAccount = BankAccount::where('created_by', $request->user()->creatorId())
-            ->with(['creator', 'chartAccount'])
+            ->with(['creator', 'chartAccount.journalItems'])
             ->findOrFail($id);
 
         return new BankAccountResource($bankAccount);
@@ -113,7 +117,7 @@ class BankAccountController extends Controller
             'bank_address',
         ]));
 
-        return (new BankAccountResource($bankAccount->load(['creator', 'chartAccount'])))
+        return (new BankAccountResource($bankAccount->load(['creator', 'chartAccount.journalItems'])))
             ->additional(['message' => 'Bank account updated successfully']);
     }
 
