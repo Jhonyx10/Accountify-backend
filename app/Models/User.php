@@ -34,6 +34,14 @@ class User extends Authenticatable
         'is_plan_purchased',
         'is_register_trial',
         'interested_plan_id',
+        'tax_number',
+        'contact',
+        'website',
+        'address',
+        'city',
+        'state',
+        'country',
+        'zip',
     ];
 
     protected $hidden = [
