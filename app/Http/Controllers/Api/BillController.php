@@ -77,6 +77,32 @@ class BillController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
+        if ($request->has('items') && is_array($request->items)) {
+            foreach ($request->items as $item) {
+                if (empty($item['product_id'])) continue;
+
+                \App\Models\BillProduct::create([
+                    'bill_id' => $bill->id,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'price' => $item['price'] ?? 0,
+                    'tax' => $item['tax_rate'] ?? 0,
+                    'discount' => $item['discount'] ?? 0,
+                    'description' => $item['description'] ?? '',
+                ]);
+
+                // Increase stock
+                \App\Models\StockReport::create([
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'type' => 'bill',
+                    'type_id' => $bill->id,
+                    'description' => 'Bill ' . $bill->bill_id,
+                    'created_by' => $request->user()->id,
+                ]);
+            }
+        }
+
         return (new BillResource($bill->load(['vender', 'creator'])))
             ->additional(['message' => 'Bill created successfully'])
             ->response()
@@ -107,6 +133,34 @@ class BillController extends Controller
 
         $bill->update($request->except(['bill_id', 'created_by']));
 
+        if ($request->has('items') && is_array($request->items)) {
+            \App\Models\StockReport::where('type', 'bill')->where('type_id', $bill->id)->delete();
+            \App\Models\BillProduct::where('bill_id', $bill->id)->delete();
+
+            foreach ($request->items as $item) {
+                if (empty($item['product_id'])) continue;
+
+                \App\Models\BillProduct::create([
+                    'bill_id' => $bill->id,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'price' => $item['price'] ?? 0,
+                    'tax' => $item['tax_rate'] ?? 0,
+                    'discount' => $item['discount'] ?? 0,
+                    'description' => $item['description'] ?? '',
+                ]);
+
+                \App\Models\StockReport::create([
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'type' => 'bill',
+                    'type_id' => $bill->id,
+                    'description' => 'Bill ' . $bill->bill_id . ' Update',
+                    'created_by' => $request->user()->id,
+                ]);
+            }
+        }
+
         return (new BillResource($bill->load(['vender', 'creator'])))
             ->additional(['message' => 'Bill updated successfully']);
     }
@@ -114,6 +168,10 @@ class BillController extends Controller
     public function destroy(string $id)
     {
         $bill = Bill::findOrFail($id);
+        
+        \App\Models\StockReport::where('type', 'bill')->where('type_id', $bill->id)->delete();
+        \App\Models\BillProduct::where('bill_id', $bill->id)->delete();
+        
         $bill->delete();
 
         return response()->json(['message' => 'Bill deleted successfully']);
