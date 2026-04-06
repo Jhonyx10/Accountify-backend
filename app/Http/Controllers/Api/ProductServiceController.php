@@ -53,6 +53,7 @@ class ProductServiceController extends Controller
             'unit_id' => 'nullable|integer',
             'sale_chartaccount_id' => 'nullable|integer',
             'expense_chartaccount_id' => 'nullable|integer',
+            'custom_fields' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -74,6 +75,10 @@ class ProductServiceController extends Controller
             'description' => $request->description,
             'created_by' => $request->user()->id,
         ]);
+
+        if ($request->has('custom_fields') && is_array($request->custom_fields)) {
+            $product->syncCustomFields($request->custom_fields);
+        }
 
         return (new ProductServiceResource($product->load(['category', 'unit'])))
             ->additional(['message' => 'Product/Service created successfully'])
@@ -98,13 +103,18 @@ class ProductServiceController extends Controller
             'sale_price' => 'sometimes|required|numeric|min:0',
             'purchase_price' => 'sometimes|required|numeric|min:0',
             'type' => 'sometimes|required|string|in:product,service',
+            'custom_fields' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $product->update($request->except(['created_by']));
+        $product->update($request->except(['created_by', 'custom_fields']));
+
+        if ($request->has('custom_fields') && is_array($request->custom_fields)) {
+            $product->syncCustomFields($request->custom_fields);
+        }
 
         return (new ProductServiceResource($product->load(['category', 'unit'])))
             ->additional(['message' => 'Product/Service updated successfully']);

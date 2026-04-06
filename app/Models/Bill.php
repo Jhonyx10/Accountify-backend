@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasCustomFields;
 
 class Bill extends Model
 {
-    use HasFactory;
+    use HasFactory, HasCustomFields;
 
     protected $fillable = [
         'bill_id',
