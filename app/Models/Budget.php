@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Budget extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -42,6 +43,35 @@ class Budget extends Model
     }
 
     /**
+     * Get all category IDs from income_data and expense_data
+     */
+    public function getAllCategoryIds()
+    {
+        $ids = [];
+
+        $income = $this->income_data;
+        if (is_array($income)) {
+            $ids = array_merge($ids, array_keys($income));
+        }
+
+        $expense = $this->expense_data;
+        if (is_array($expense)) {
+            $ids = array_merge($ids, array_keys($expense));
+        }
+
+        // Filter out non-numeric keys and convert to int
+        return array_unique(array_map('intval', array_filter($ids, 'is_numeric')));
+    }
+
+    /**
+     * Set income data as JSON object
+     */
+    public function setIncomeDataAttribute($value)
+    {
+        $this->attributes['income_data'] = is_array($value) ? json_encode($value, JSON_FORCE_OBJECT) : $value;
+    }
+
+    /**
      * Get income data as array
      */
     public function getIncomeDataAttribute($value)
@@ -50,11 +80,11 @@ class Budget extends Model
     }
 
     /**
-     * Set income data as JSON
+     * Set expense data as JSON object
      */
-    public function setIncomeDataAttribute($value)
+    public function setExpenseDataAttribute($value)
     {
-        $this->attributes['income_data'] = is_array($value) ? json_encode($value) : $value;
+        $this->attributes['expense_data'] = is_array($value) ? json_encode($value, JSON_FORCE_OBJECT) : $value;
     }
 
     /**
@@ -63,14 +93,6 @@ class Budget extends Model
     public function getExpenseDataAttribute($value)
     {
         return $value ? json_decode($value, true) : [];
-    }
-
-    /**
-     * Set expense data as JSON
-     */
-    public function setExpenseDataAttribute($value)
-    {
-        $this->attributes['expense_data'] = is_array($value) ? json_encode($value) : $value;
     }
 }
 
