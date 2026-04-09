@@ -44,10 +44,10 @@ class ChartOfAccountController extends Controller
 
         $perPage = $request->input('per_page', 15);
         if ($perPage == -1) {
-            $accounts = $query->latest()->get();
+            $accounts = $query->orderBy('code')->get();
             return ChartOfAccountResource::collection($accounts);
         } else {
-            $accounts = $query->latest()->paginate($perPage);
+            $accounts = $query->orderBy('code')->paginate($perPage);
             return ChartOfAccountResource::collection($accounts);
         }
     }

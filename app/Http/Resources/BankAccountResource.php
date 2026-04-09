@@ -21,8 +21,10 @@ class BankAccountResource extends JsonResource
             'account_number'  => $this->account_number,
             'opening_balance' => (float) $this->opening_balance,
             'current_balance' => $this->whenLoaded('chartAccount', function () {
-                $ledgerBalance = $this->chartAccount ? (float) $this->chartAccount->balance : 0;
-                return (float) $this->opening_balance + $ledgerBalance;
+                // Balance is derived purely from journal entries.
+                // The opening balance journal entry is already included in the ledger,
+                // so we must NOT add opening_balance again to avoid double-counting.
+                return $this->chartAccount ? (float) $this->chartAccount->balance : (float) $this->opening_balance;
             }, (float) $this->opening_balance),
             'contact_number'  => $this->contact_number,
             'bank_address'    => $this->bank_address,
