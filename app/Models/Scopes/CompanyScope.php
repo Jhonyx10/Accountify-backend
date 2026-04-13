@@ -15,6 +15,12 @@ class CompanyScope implements Scope
     public function apply(Builder $builder, Model $model): void
     {
         if (Auth::check()) {
+
+            // Super admins see everything
+            if (Auth::user()->type === 'super admin') {
+                return;
+            }
+
             $builder->where($model->getTable() . '.created_by', Auth::user()->creatorId());
         }
     }
