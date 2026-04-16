@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\BelongsToCompany;
 
@@ -10,6 +12,7 @@ class Coupon extends Model
 {
     use HasFactory;
     use BelongsToCompany;
+    use SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -18,12 +21,15 @@ class Coupon extends Model
         'limit',
         'description',
         'is_active',
+        'expires_at',
+        'created_by',
     ];
 
     protected $casts = [
         'discount' => 'decimal:2',
         'limit' => 'integer',
         'is_active' => 'integer',
+        'expires_at' => 'datetime',
     ];
 
     /**
@@ -43,6 +49,10 @@ class Coupon extends Model
             return false;
         }
 
+        if ($this->expires_at && $this->expires_at->isPast()) {
+            return false;
+        }
+
         $usedCount = $this->userCoupons()->count();
 
         if ($this->limit > 0 && $usedCount >= $this->limit) {
@@ -50,6 +60,14 @@ class Coupon extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Get the user that created the coupon
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }
 

@@ -22,6 +22,7 @@ class CouponResource extends JsonResource
             'limit' => $this->limit,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'expires_at' => $this->expires_at?->format('Y-m-d H:i:s'),
             'is_valid' => $this->isValid(),
             'used_count' => $this->whenCounted('userCoupons'),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),

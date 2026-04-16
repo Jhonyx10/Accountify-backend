@@ -203,6 +203,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Coupons
     Route::post('coupons/validate', [CouponController::class, 'validateCoupon']);
+    Route::post('coupons/suggest-code', [CouponController::class, 'suggestCode']);
     Route::apiResource('coupons', CouponController::class);
 
     // Plan Requests
