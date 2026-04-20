@@ -248,13 +248,15 @@ class ReportController extends Controller
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->where('journal_entries.date', '<=', $asOfDate)
-                ->sum('journal_items.debit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $creditSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->where('journal_entries.date', '<=', $asOfDate)
-                ->sum('journal_items.credit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $balance = $debitSum - $creditSum;
 
@@ -321,13 +323,15 @@ class ReportController extends Controller
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->whereBetween('journal_entries.date', [$startDate, $endDate])
-                ->sum('journal_items.debit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $creditSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->whereBetween('journal_entries.date', [$startDate, $endDate])
-                ->sum('journal_items.credit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             if ($debitSum > 0 || $creditSum > 0) {
                 $trialBalanceData[] = [
@@ -390,13 +394,15 @@ class ReportController extends Controller
             ->where('journal_entries.created_by', $creatorId)
             ->where('journal_items.account', $accountId)
             ->where('journal_entries.date', '<', $startDate)
-            ->sum('journal_items.debit');
+            ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+            ->value('total') ?? 0;
 
         $openingCredit = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
             ->where('journal_entries.created_by', $creatorId)
             ->where('journal_items.account', $accountId)
             ->where('journal_entries.date', '<', $startDate)
-            ->sum('journal_items.credit');
+            ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+            ->value('total') ?? 0;
 
         $openingBalance = $openingDebit - $openingCredit;
 

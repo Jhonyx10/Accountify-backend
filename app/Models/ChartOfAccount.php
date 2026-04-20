@@ -53,4 +53,21 @@ class ChartOfAccount extends Model
     {
         return $this->hasMany(JournalItem::class, 'account');
     }
+
+    public function getBalanceAttribute()
+    {
+        $items = clone $this->journalItems;
+        $debit = $items->sum(function ($item) { return (float) $item->debit; });
+        $credit = $items->sum(function ($item) { return (float) $item->credit; });
+
+        $typeName = $this->accountType?->name ?? '';
+
+        if (in_array($typeName, ['Assets', 'Expenses', 'Costs of Goods Sold'])) {
+            return $debit - $credit;
+        } elseif (in_array($typeName, ['Liabilities', 'Equity', 'Income'])) {
+            return $credit - $debit;
+        }
+
+        return $debit - $credit; // Default fallback
+    }
 }

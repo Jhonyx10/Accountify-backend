@@ -12,7 +12,7 @@ class ChartOfAccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator']);
+        $query = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator', 'journalItems']);
 
         if ($request->user()) {
             $query->where('created_by', $request->user()->id);
@@ -107,5 +107,60 @@ class ChartOfAccountController extends Controller
         $account->delete();
 
         return response()->json(['message' => 'Chart of Account deleted successfully']);
+    }
+
+    public function ledger(Request $request, string $id)
+    {
+        $account = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator'])->findOrFail($id);
+
+        $query = \App\Models\JournalItem::with(['journalEntry'])
+            ->where('account', $id)
+            ->whereHas('journalEntry', function($q) use ($request) {
+                if ($request->has('date_from')) {
+                    $q->whereDate('date', '>=', $request->date_from);
+                }
+                if ($request->has('date_to')) {
+                    $q->whereDate('date', '<=', $request->date_to);
+                }
+            });
+
+        $items = $query->get()->sortBy(function($item) {
+            return $item->journalEntry->date->timestamp . '-' . str_pad($item->journalEntry->id, 10, '0', STR_PAD_LEFT);
+        });
+
+        $runningBalance = 0;
+        $ledger = [];
+
+        foreach ($items as $item) {
+            $debit = (float) $item->debit;
+            $credit = (float) $item->credit;
+
+            $typeName = $account->accountType?->name ?? '';
+
+            if (in_array($typeName, ['Assets', 'Expenses', 'Costs of Goods Sold'])) {
+                $runningBalance += ($debit - $credit);
+            } elseif (in_array($typeName, ['Liabilities', 'Equity', 'Income'])) {
+                $runningBalance += ($credit - $debit);
+            } else {
+                $runningBalance += ($debit - $credit);
+            }
+
+            $ledger[] = [
+                'id' => $item->id,
+                'date' => $item->journalEntry->date->format('Y-m-d'),
+                'reference' => $item->journalEntry->reference,
+                'description' => $item->description ?? $item->journalEntry->description,
+                'debit' => $debit,
+                'credit' => $credit,
+                'balance' => $runningBalance,
+                'journal_id' => $item->journalEntry->id
+            ];
+        }
+
+        return response()->json([
+            'data' => array_reverse($ledger),
+            'account' => new \App\Http\Resources\ChartOfAccountResource($account),
+            'current_balance' => $runningBalance
+        ]);
     }
 }

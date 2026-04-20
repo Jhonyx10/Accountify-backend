@@ -105,6 +105,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('product-units', ProductServiceUnitController::class);
 
     // Chart of Accounts
+    Route::get('chart-of-accounts/{id}/ledger', [ChartOfAccountController::class, 'ledger']);
     Route::apiResource('chart-of-accounts', ChartOfAccountController::class);
 
     // Payments
