@@ -233,7 +233,9 @@ class ReportController extends Controller
         $asOfDate = $request->as_of_date ?? date('Y-m-d');
 
         // Get all accounts with their balances
-        $accounts = ChartOfAccount::where('created_by', $creatorId)->get();
+        $accounts = ChartOfAccount::with(['accountType', 'accountSubType'])
+            ->where('created_by', $creatorId)
+            ->get();
 
         $assets = [];
         $liabilities = [];
@@ -242,58 +244,80 @@ class ReportController extends Controller
         $totalLiabilities = 0;
         $totalEquity = 0;
 
+        $totalIncome = 0;
+        $totalExpense = 0;
+
         foreach ($accounts as $account) {
             // Calculate balance from journal items
             $debitSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->where('journal_entries.date', '<=', $asOfDate)
-                ->sum('journal_items.debit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $creditSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->where('journal_entries.date', '<=', $asOfDate)
-                ->sum('journal_items.credit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
-            $balance = $debitSum - $creditSum;
-
-            if ($balance != 0) {
-                $accountData = [
-                    'code' => $account->code,
-                    'name' => $account->name,
-                    'balance' => (float) abs($balance),
-                ];
-
-                // Categorize by account type
-                if (in_array($account->type, [1, 2, 3])) { // Assets (assuming 1=Current Assets, 2=Fixed Assets, 3=Other Assets)
-                    $assets[] = $accountData;
-                    $totalAssets += abs($balance);
-                } elseif (in_array($account->type, [4, 5])) { // Liabilities (assuming 4=Current Liabilities, 5=Long-term Liabilities)
-                    $liabilities[] = $accountData;
-                    $totalLiabilities += abs($balance);
-                } elseif ($account->type == 6) { // Equity (assuming 6=Equity)
-                    $equity[] = $accountData;
-                    $totalEquity += abs($balance);
+            $typeName = $account->accountType?->name ?? '';
+            $subTypeName = $account->accountSubType?->name ?? 'Other';
+            
+            // Determine balance based on account type
+            if ($typeName === 'Assets') {
+                $balance = $debitSum - $creditSum;
+                if ($balance != 0) {
+                    if (!isset($assets[$subTypeName])) $assets[$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'items' => []];
+                    $assets[$subTypeName]['items'][] = ['id' => $account->id, 'name' => $account->name, 'code' => $account->code, 'balance' => (float)$balance];
+                    $assets[$subTypeName]['total'] += $balance;
+                    $totalAssets += $balance;
                 }
+            } elseif ($typeName === 'Liabilities') {
+                $balance = $creditSum - $debitSum;
+                if ($balance != 0) {
+                    if (!isset($liabilities[$subTypeName])) $liabilities[$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'items' => []];
+                    $liabilities[$subTypeName]['items'][] = ['id' => $account->id, 'name' => $account->name, 'code' => $account->code, 'balance' => (float)$balance];
+                    $liabilities[$subTypeName]['total'] += $balance;
+                    $totalLiabilities += $balance;
+                }
+            } elseif ($typeName === 'Equity') {
+                $balance = $creditSum - $debitSum;
+                if ($balance != 0) {
+                    if (!isset($equity[$subTypeName])) $equity[$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'items' => []];
+                    $equity[$subTypeName]['items'][] = ['id' => $account->id, 'name' => $account->name, 'code' => $account->code, 'balance' => (float)$balance];
+                    $equity[$subTypeName]['total'] += $balance;
+                    $totalEquity += $balance;
+                }
+            } elseif ($typeName === 'Income') {
+                $balance = $creditSum - $debitSum;
+                $totalIncome += $balance;
+            } elseif ($typeName === 'Expenses' || $typeName === 'Costs of Goods Sold') {
+                $balance = $debitSum - $creditSum;
+                $totalExpense += $balance;
             }
+        }
+        
+        $netIncome = $totalIncome - $totalExpense;
+        if ($netIncome != 0) {
+             if (!isset($equity['Current Year Earnings'])) $equity['Current Year Earnings'] = ['name' => 'Current Year Earnings', 'total' => 0, 'items' => []];
+             $equity['Current Year Earnings']['items'][] = ['id' => -1, 'name' => 'Net Income', 'code' => '', 'balance' => (float)$netIncome];
+             $equity['Current Year Earnings']['total'] += $netIncome;
+             $totalEquity += $netIncome;
         }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'assets' => [
-                    'accounts' => $assets,
-                    'total' => (float) $totalAssets,
-                ],
-                'liabilities' => [
-                    'accounts' => $liabilities,
-                    'total' => (float) $totalLiabilities,
-                ],
-                'equity' => [
-                    'accounts' => $equity,
-                    'total' => (float) $totalEquity,
-                ],
+                'assets' => array_values($assets),
+                'liabilities' => array_values($liabilities),
+                'equity' => array_values($equity),
+                'totalAssets' => (float)$totalAssets,
+                'totalLiabilities' => (float)$totalLiabilities,
+                'totalEquity' => (float)$totalEquity,
+                'totalLiabilitiesAndEquity' => (float)($totalLiabilities + $totalEquity),
                 'as_of_date' => $asOfDate,
             ]
         ]);
