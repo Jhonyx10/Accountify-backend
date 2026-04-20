@@ -334,7 +334,7 @@ class ReportController extends Controller
         $startDate = $request->start_date ?? date('Y-01-01');
         $endDate = $request->end_date ?? date('Y-12-31');
 
-        $accounts = ChartOfAccount::where('created_by', $creatorId)->get();
+        $accounts = ChartOfAccount::with(['accountType'])->where('created_by', $creatorId)->get();
 
         $trialBalanceData = [];
         $totalDebit = 0;
@@ -345,24 +345,33 @@ class ReportController extends Controller
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->whereBetween('journal_entries.date', [$startDate, $endDate])
-                ->sum('journal_items.debit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $creditSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->whereBetween('journal_entries.date', [$startDate, $endDate])
-                ->sum('journal_items.credit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
-            if ($debitSum > 0 || $creditSum > 0) {
+            $balance = $debitSum - $creditSum;
+
+            if ($balance != 0) {
+                $netDebit = $balance > 0 ? $balance : null;
+                $netCredit = $balance < 0 ? abs($balance) : null;
+
                 $trialBalanceData[] = [
+                    'id' => $account->id,
                     'code' => $account->code,
                     'name' => $account->name,
-                    'debit' => (float) $debitSum,
-                    'credit' => (float) $creditSum,
+                    'type' => $account->accountType?->name ?? 'Other',
+                    'debit' => $netDebit ? (float) $netDebit : null,
+                    'credit' => $netCredit ? (float) $netCredit : null,
                 ];
 
-                $totalDebit += $debitSum;
-                $totalCredit += $creditSum;
+                if ($netDebit) $totalDebit += $netDebit;
+                if ($netCredit) $totalCredit += $netCredit;
             }
         }
 
