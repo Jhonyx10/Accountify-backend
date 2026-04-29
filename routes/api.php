@@ -63,7 +63,6 @@ Route::get('/health', function () {
 
 // Authentication routes (public)
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
 
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -231,6 +230,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('referrals', [ReferralProgramController::class, 'index']);
     Route::get('referral-settings', [ReferralProgramController::class, 'settings']);
     Route::post('referral-settings', [ReferralProgramController::class, 'settings']);
+    Route::put('referral-settings', [ReferralProgramController::class, 'settings']);
 
     // Webhooks
     Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'destroy']);

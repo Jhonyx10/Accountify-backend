@@ -6,11 +6,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Traits\BelongsToCompany;
+use Illuminate\Notifications\Notifiable;
+
+use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
 
 class Customer extends Authenticatable
 {
+    use HasApiTokens;
     use HasFactory;
     use BelongsToCompany;
+    use Notifiable;
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($customer) {
+            if (empty($customer->referral_code)) {
+                $customer->referral_code = strtoupper(Str::random(8));
+            }
+        });
+    }
+
+    public function getReferralLinkAttribute()
+    {
+        return 'http://localhost:5173/register?ref=' . $this->referral_code;
+    }
+    
+    protected $appends = ['referral_link'];
 
     protected $fillable = [
         'customer_id',
@@ -40,6 +64,8 @@ class Customer extends Authenticatable
         'lang',
         'balance',
         'last_login_at',
+        'referral_code',
+        'used_referral_code',
     ];
 
     protected $hidden = [
