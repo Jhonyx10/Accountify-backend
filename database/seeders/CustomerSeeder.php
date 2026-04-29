@@ -36,6 +36,16 @@ class CustomerSeeder extends Seeder
                 'email' => 'acme@example.com',
                 'contact' => '5551234567',
             ],
+            [
+                'name' => 'Global Solutions',
+                'email' => 'global@example.com',
+                'contact' => '1112223333',
+            ],
+            [
+                'name' => 'Tech Innovators',
+                'email' => 'tech@example.com',
+                'contact' => '9998887777',
+            ],
         ];
 
         foreach ($customers as $index => $customerData) {
