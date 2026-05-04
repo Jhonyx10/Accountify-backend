@@ -233,17 +233,34 @@ class ReportController extends Controller
 
         $asOfDate = $request->as_of_date ?? date('Y-m-d');
 
-        // Get all accounts with their balances
-        $accounts = ChartOfAccount::with(['accountType', 'accountSubType'])
+        // Maps DB subtype names → human-readable L1 category labels shown in the report
+        $subtypeCategoryMap = [
+            // Assets
+            'Bank & Cash'       => 'Current Assets',
+            'Current Asset'     => 'Current Assets',
+            'Inventory'         => 'Current Assets',
+            'Prepayment'        => 'Current Assets',
+            'Fixed Asset'       => 'Long-term Assets',
+            'Non-current Asset' => 'Long-term Assets',
+            'Depreciation'      => 'Long-term Assets',
+            // Liabilities
+            'Current Liability'     => 'Current Liabilities',
+            'Liability'             => 'Other Liabilities',
+            'Non-current Liability' => 'Long-term Liabilities',
+            // Equity
+            'Equity' => 'Equity',
+        ];
+
+        // Get all accounts with their balances, including parent account info
+        $accounts = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount'])
             ->where('created_by', $creatorId)
             ->get();
 
-        $assets = [];
-        $liabilities = [];
-        $equity = [];
-        $totalAssets = 0;
-        $totalLiabilities = 0;
-        $totalEquity = 0;
+        $sections = [
+            'Assets' => ['total' => 0, 'subtypes' => []],
+            'Liabilities' => ['total' => 0, 'subtypes' => []],
+            'Equity' => ['total' => 0, 'subtypes' => []],
+        ];
 
         $totalIncome = 0;
         $totalExpense = 0;
@@ -266,59 +283,99 @@ class ReportController extends Controller
 
             $typeName = $account->accountType?->name ?? '';
             $subTypeName = $account->accountSubType?->name ?? 'Other';
+            // L1 label: map subtype to a readable category, fallback to subtype name itself
+            $categoryLabel = $subtypeCategoryMap[$subTypeName] ?? $subTypeName;
+            // L2 label: the subtype name (e.g. "Bank & Cash")
+            $groupLabel = $subTypeName;
+            // L3 label source: account's parent account name, fallback to account name
+            $parentName = $account->parentAccount?->name ?? $account->name;
             
-            // Determine balance based on account type
+            $balance = 0;
             if ($typeName === 'Assets') {
                 $balance = $debitSum - $creditSum;
-                if ($balance != 0) {
-                    if (!isset($assets[$subTypeName])) $assets[$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'items' => []];
-                    $assets[$subTypeName]['items'][] = ['id' => $account->id, 'name' => $account->name, 'code' => $account->code, 'balance' => (float)$balance];
-                    $assets[$subTypeName]['total'] += $balance;
-                    $totalAssets += $balance;
-                }
-            } elseif ($typeName === 'Liabilities') {
+            } elseif ($typeName === 'Liabilities' || $typeName === 'Equity') {
                 $balance = $creditSum - $debitSum;
-                if ($balance != 0) {
-                    if (!isset($liabilities[$subTypeName])) $liabilities[$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'items' => []];
-                    $liabilities[$subTypeName]['items'][] = ['id' => $account->id, 'name' => $account->name, 'code' => $account->code, 'balance' => (float)$balance];
-                    $liabilities[$subTypeName]['total'] += $balance;
-                    $totalLiabilities += $balance;
-                }
-            } elseif ($typeName === 'Equity') {
-                $balance = $creditSum - $debitSum;
-                if ($balance != 0) {
-                    if (!isset($equity[$subTypeName])) $equity[$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'items' => []];
-                    $equity[$subTypeName]['items'][] = ['id' => $account->id, 'name' => $account->name, 'code' => $account->code, 'balance' => (float)$balance];
-                    $equity[$subTypeName]['total'] += $balance;
-                    $totalEquity += $balance;
-                }
             } elseif ($typeName === 'Income') {
-                $balance = $creditSum - $debitSum;
-                $totalIncome += $balance;
+                $totalIncome += ($creditSum - $debitSum);
+                continue;
             } elseif ($typeName === 'Expenses' || $typeName === 'Costs of Goods Sold') {
-                $balance = $debitSum - $creditSum;
-                $totalExpense += $balance;
+                $totalExpense += ($debitSum - $creditSum);
+                continue;
+            }
+
+            if ($balance != 0 && isset($sections[$typeName])) {
+                $sections[$typeName]['total'] += $balance;
+                
+                // L1: category (e.g. "Current Assets")
+                if (!isset($sections[$typeName]['subtypes'][$categoryLabel])) {
+                    $sections[$typeName]['subtypes'][$categoryLabel] = [
+                        'name' => $categoryLabel,
+                        'total' => 0,
+                        'groups' => []
+                    ];
+                }
+                $sections[$typeName]['subtypes'][$categoryLabel]['total'] += $balance;
+                
+                // L2: subtype (e.g. "Bank & Cash")
+                if (!isset($sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel])) {
+                    $sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel] = [
+                        'name' => $groupLabel,
+                        'total' => 0,
+                        'items' => []
+                    ];
+                }
+                $sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel]['total'] += $balance;
+                $sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel]['items'][] = [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'code' => $account->code,
+                    'balance' => (float)$balance
+                ];
             }
         }
         
         $netIncome = $totalIncome - $totalExpense;
         if ($netIncome != 0) {
-             if (!isset($equity['Current Year Earnings'])) $equity['Current Year Earnings'] = ['name' => 'Current Year Earnings', 'total' => 0, 'items' => []];
-             $equity['Current Year Earnings']['items'][] = ['id' => -1, 'name' => 'Net Income', 'code' => '', 'balance' => (float)$netIncome];
-             $equity['Current Year Earnings']['total'] += $netIncome;
-             $totalEquity += $netIncome;
+            $typeName = 'Equity';
+            $subTypeName = 'Current Year Earnings';
+            $parentName = 'Net Income';
+            
+            if (!isset($sections[$typeName]['subtypes'][$subTypeName])) {
+                $sections[$typeName]['subtypes'][$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'groups' => []];
+            }
+            $sections[$typeName]['subtypes'][$subTypeName]['total'] += $netIncome;
+            $sections[$typeName]['total'] += $netIncome;
+            
+            if (!isset($sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName])) {
+                $sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName] = ['name' => $parentName, 'total' => 0, 'items' => []];
+            }
+            $sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName]['total'] += $netIncome;
+            $sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName]['items'][] = [
+                'id' => -1,
+                'name' => 'Net Income',
+                'code' => '',
+                'balance' => (float)$netIncome
+            ];
+        }
+
+        // Convert associative arrays to indexed for JSON
+        foreach ($sections as $type => &$section) {
+            foreach ($section['subtypes'] as &$subtype) {
+                $subtype['groups'] = array_values($subtype['groups']);
+            }
+            $section['subtypes'] = array_values($section['subtypes']);
         }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'assets' => array_values($assets),
-                'liabilities' => array_values($liabilities),
-                'equity' => array_values($equity),
-                'totalAssets' => (float)$totalAssets,
-                'totalLiabilities' => (float)$totalLiabilities,
-                'totalEquity' => (float)$totalEquity,
-                'totalLiabilitiesAndEquity' => (float)($totalLiabilities + $totalEquity),
+                'assets' => $sections['Assets']['subtypes'],
+                'liabilities' => $sections['Liabilities']['subtypes'],
+                'equity' => $sections['Equity']['subtypes'],
+                'totalAssets' => (float)$sections['Assets']['total'],
+                'totalLiabilities' => (float)$sections['Liabilities']['total'],
+                'totalEquity' => (float)$sections['Equity']['total'],
+                'totalLiabilitiesAndEquity' => (float)($sections['Liabilities']['total'] + $sections['Equity']['total']),
                 'as_of_date' => $asOfDate,
             ]
         ]);
