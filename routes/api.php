@@ -172,6 +172,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet']);
     Route::get('reports/balance-sheet/export', [ReportController::class, 'balanceSheetExport']);
     Route::get('reports/trial-balance', [ReportController::class, 'trialBalance']);
+    Route::get('reports/trial-balance/export', [ReportController::class, 'trialBalanceExport']);
     Route::get('reports/account-statement', [ReportController::class, 'accountStatement']);
 
     // HIGH PRIORITY FEATURES

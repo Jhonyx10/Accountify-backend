@@ -467,6 +467,23 @@ class ReportController extends Controller
     }
 
     /**
+     * Trial Balance Export (PDF)
+     */
+    public function trialBalanceExport(Request $request)
+    {
+        $response = $this->trialBalance($request);
+        $data = $response->getData(true)['data'];
+
+        $pdf = Pdf::loadView('reports.trial-balance', [
+            'data' => $data,
+        ]);
+
+        $filename = 'trial-balance-' . $data['start_date'] . '-to-' . $data['end_date'] . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
      * Account Statement (Ledger)
      */
     public function accountStatement(Request $request)
