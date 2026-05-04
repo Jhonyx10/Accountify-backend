@@ -170,6 +170,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('reports/income-vs-expense', [ReportController::class, 'incomeVsExpense']);
     Route::get('reports/profit-loss', [ReportController::class, 'profitLoss']);
     Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet']);
+    Route::get('reports/balance-sheet/export', [ReportController::class, 'balanceSheetExport']);
     Route::get('reports/trial-balance', [ReportController::class, 'trialBalance']);
     Route::get('reports/account-statement', [ReportController::class, 'accountStatement']);
 

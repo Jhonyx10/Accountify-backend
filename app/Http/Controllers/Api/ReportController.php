@@ -15,6 +15,7 @@ use App\Models\Vender;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -321,6 +322,26 @@ class ReportController extends Controller
                 'as_of_date' => $asOfDate,
             ]
         ]);
+    }
+
+    /**
+     * Balance Sheet Export
+     */
+    public function balanceSheetExport(Request $request)
+    {
+        $response = $this->balanceSheet($request);
+        $data = $response->getData(true)['data'];
+
+        $user = Auth::user();
+        $company = \App\Models\User::find($user->creatorId());
+        $companyName = $company ? $company->name : 'Company';
+
+        $pdf = Pdf::loadView('reports.balance-sheet', [
+            'data' => $data,
+            'companyName' => $companyName,
+        ]);
+
+        return $pdf->download('balance-sheet-' . $data['as_of_date'] . '.pdf');
     }
 
     /**
