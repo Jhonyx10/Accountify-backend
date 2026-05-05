@@ -5,95 +5,85 @@
     <title>Balance Sheet</title>
     <style>
         body {
-            font-family: 'DejaVu Sans', sans-serif;
-            color: #333;
-            font-size: 13px;
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            color: #000;
+            font-size: 11px;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
         .header {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 20px;
         }
         .report-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 5px;
+            color: #000;
+            margin-bottom: 10px;
         }
         .report-date {
-            font-size: 13px;
-            color: #95a5a6;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 20px;
         }
-        .section-title {
-            font-size: 15px;
-            font-weight: bold;
-            margin-top: 20px;
-            margin-bottom: 8px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 5px;
-            text-transform: uppercase;
-        }
-        .text-primary { color: #3498db; }
-        .text-warning { color: #f39c12; }
-
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 4px;
+            border: 1px solid #ccc;
         }
         th, td {
+            border: 1px solid #ccc;
             padding: 6px 10px;
             text-align: left;
         }
+        th:first-child, td:first-child {
+            width: 80%;
+        }
+        th:last-child, td:last-child {
+            width: 20%;
+        }
         .text-right { text-align: right; }
-        .w-75 { width: 75%; }
-        .w-25 { width: 25%; }
-
-        /* L1: Subtype (e.g. "Current Assets") */
-        .subtype-name {
-            font-weight: bold;
-            font-size: 13px;
-            color: #333;
-            padding: 10px 10px 4px 10px;
-            background-color: #f4f6f8;
-            margin-top: 8px;
-        }
-
-        /* L2: Group (e.g. "Bank & Cash") */
-        .group-name {
+        
+        .section-header td {
             font-weight: bold;
             font-size: 12px;
-            color: #555;
-            padding: 6px 10px 3px 24px;
+            text-transform: uppercase;
         }
-
-        /* L3: Account rows */
-        .account-row td {
+        
+        .l1-row td {
+            font-weight: bold;
+        }
+        .l2-row td {
+            font-weight: bold;
+        }
+        .l2-row td:first-child {
+            padding-left: 20px;
+        }
+        
+        .l3-row td {
+            font-weight: normal;
+        }
+        .l3-row td:first-child {
             padding-left: 40px;
-            color: #555;
-            font-size: 12px;
         }
 
-        .main-total-row {
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .main-total-row td {
-            padding-top: 12px;
-            padding-bottom: 12px;
-        }
-        .main-total-value {
-            border-top: 2px solid #333;
-            border-bottom: 2px double #333;
-        }
-        .sub-total-row td {
-            border-top: 1px solid #ddd;
+        .total-l1-row td {
             font-weight: bold;
         }
-        .border-t { border-top: 1px solid #ddd; }
+        
+        .final-total-row {
+            color: #d32f2f;
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .final-total-row td {
+            border-top: 1.5px solid #d32f2f !important;
+            border-bottom: 1.5px solid #d32f2f !important;
+            border-left: 1.5px solid #d32f2f !important;
+            border-right: 1.5px solid #d32f2f !important;
+        }
+        
         .mb-20 { margin-bottom: 20px; }
     </style>
 </head>
@@ -101,98 +91,124 @@
 
     <div class="header">
         <div class="report-title">Balance Sheet</div>
-        <div class="report-date">As of {{ date('F j, Y', strtotime($data['as_of_date'])) }}</div>
+        @php
+            $date = \Carbon\Carbon::parse($data['as_of_date']);
+            $startOfMonth = $date->copy()->startOfMonth()->format('F j');
+            $endOfMonth = $date->format('j, Y');
+            $dateString = "As of {$startOfMonth} - {$endOfMonth}";
+        @endphp
+        <div class="report-date">{{ $dateString }}</div>
     </div>
 
-    <!-- ASSETS -->
-    <div class="section-title text-primary">Assets</div>
-
-    @foreach($data['assets'] as $subtype)
-        <div class="subtype-name">{{ $subtype['name'] }}</div>
-        @foreach($subtype['groups'] as $group)
-            <div class="group-name">{{ $group['name'] }}</div>
-            <table>
-                <tbody>
+    <table>
+        <tbody>
+            <!-- ASSETS -->
+            <tr class="section-header">
+                <td>ASSETS</td>
+                <td></td>
+            </tr>
+            
+            @foreach($data['assets'] as $subtype)
+                <tr class="l1-row">
+                    <td>{{ $subtype['name'] }}</td>
+                    <td class="text-right">{{ number_format($subtype['total'], 2) }}</td>
+                </tr>
+                @foreach($subtype['groups'] as $group)
+                    <tr class="l2-row">
+                        <td>{{ $group['name'] }}</td>
+                        <td class="text-right">{{ number_format($group['total'], 2) }}</td>
+                    </tr>
                     @foreach($group['items'] as $item)
-                        <tr class="account-row">
-                            <td class="w-75">{{ $item['name'] }}</td>
-                            <td class="w-25 text-right">&#8369;{{ number_format($item['balance'], 2) }}</td>
+                        <tr class="l3-row">
+                            <td>{{ $item['name'] }}</td>
+                            <td class="text-right">{{ number_format($item['balance'], 2) }}</td>
                         </tr>
                     @endforeach
-                </tbody>
-            </table>
-        @endforeach
-    @endforeach
-
-    <table>
-        <tr class="main-total-row">
-            <td class="w-75">Total Assets</td>
-            <td class="w-25 text-right main-total-value">&#8369;{{ number_format($data['totalAssets'], 2) }}</td>
-        </tr>
-    </table>
-
-    <div class="mb-20"></div>
-
-    <!-- LIABILITIES & EQUITY -->
-    <div class="section-title text-warning">Liabilities &amp; Equity</div>
-
-    <!-- Liabilities -->
-    @foreach($data['liabilities'] as $subtype)
-        <div class="subtype-name">{{ $subtype['name'] }}</div>
-        @foreach($subtype['groups'] as $group)
-            <div class="group-name">{{ $group['name'] }}</div>
-            <table>
-                <tbody>
-                    @foreach($group['items'] as $item)
-                        <tr class="account-row">
-                            <td class="w-75">{{ $item['name'] }}</td>
-                            <td class="w-25 text-right">&#8369;{{ number_format($item['balance'], 2) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endforeach
-    @endforeach
-
-    <table>
-        <tr class="main-total-row">
-            <td class="w-75">Total Liabilities</td>
-            <td class="w-25 text-right border-t">&#8369;{{ number_format($data['totalLiabilities'], 2) }}</td>
-        </tr>
-    </table>
-
-    <!-- Equity -->
-    @foreach($data['equity'] as $subtype)
-        <div class="subtype-name">{{ $subtype['name'] }}</div>
-        @foreach($subtype['groups'] as $group)
-            <div class="group-name">{{ $group['name'] }}</div>
-            <table>
-                <tbody>
-                    @foreach($group['items'] as $item)
-                        <tr class="account-row">
-                            <td class="w-75">{{ $item['name'] }}</td>
-                            <td class="w-25 text-right">&#8369;{{ number_format($item['balance'], 2) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endforeach
-    @endforeach
-
-    <table>
-        <tr class="main-total-row">
-            <td class="w-75">Total Equity</td>
-            <td class="w-25 text-right border-t">&#8369;{{ number_format($data['totalEquity'], 2) }}</td>
-        </tr>
+                @endforeach
+            @endforeach
+            
+            <tr class="final-total-row">
+                <td>TOTAL ASSETS</td>
+                <td class="text-right">{{ number_format($data['totalAssets'], 2) }}</td>
+            </tr>
+        </tbody>
     </table>
 
     <div class="mb-20"></div>
 
     <table>
-        <tr class="main-total-row">
-            <td class="w-75 text-warning">Total Liabilities &amp; Equity</td>
-            <td class="w-25 text-right main-total-value">&#8369;{{ number_format($data['totalLiabilitiesAndEquity'], 2) }}</td>
-        </tr>
+        <tbody>
+            <!-- LIABILITIES & EQUITY -->
+            <!-- LIABILITIES -->
+            <tr class="section-header">
+                <td>LIABILITIES</td>
+                <td></td>
+            </tr>
+            
+            @foreach($data['liabilities'] as $subtype)
+                <tr class="l1-row">
+                    <td>{{ $subtype['name'] }}</td>
+                    <td class="text-right">{{ number_format($subtype['total'], 2) }}</td>
+                </tr>
+                @foreach($subtype['groups'] as $group)
+                    <tr class="l2-row">
+                        <td>{{ $group['name'] }}</td>
+                        <td class="text-right">{{ number_format($group['total'], 2) }}</td>
+                    </tr>
+                    @foreach($group['items'] as $item)
+                        <tr class="l3-row">
+                            <td>{{ $item['name'] }}</td>
+                            <td class="text-right">{{ number_format($item['balance'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                @endforeach
+            @endforeach
+            
+            <!-- We will skip "Total Liabilities" separate row to match the section totals style unless needed -->
+            @if(count($data['liabilities']) > 0)
+            <tr class="total-l1-row">
+                <td>Total Liabilities</td>
+                <td class="text-right">{{ number_format($data['totalLiabilities'], 2) }}</td>
+            </tr>
+            @endif
+
+            <!-- EQUITY -->
+            <tr class="section-header">
+                <td>EQUITY</td>
+                <td></td>
+            </tr>
+            
+            @foreach($data['equity'] as $subtype)
+                <tr class="l1-row">
+                    <td>{{ $subtype['name'] }}</td>
+                    <td class="text-right">{{ number_format($subtype['total'], 2) }}</td>
+                </tr>
+                @foreach($subtype['groups'] as $group)
+                    <tr class="l2-row">
+                        <td>{{ $group['name'] }}</td>
+                        <td class="text-right">{{ number_format($group['total'], 2) }}</td>
+                    </tr>
+                    @foreach($group['items'] as $item)
+                        <tr class="l3-row">
+                            <td>{{ $item['name'] }}</td>
+                            <td class="text-right">{{ number_format($item['balance'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                @endforeach
+            @endforeach
+            
+            @if(count($data['equity']) > 0)
+            <tr class="total-l1-row">
+                <td>Total Equity</td>
+                <td class="text-right">{{ number_format($data['totalEquity'], 2) }}</td>
+            </tr>
+            @endif
+
+            <tr class="final-total-row">
+                <td>TOTAL LIABILITIES AND EQUITY</td>
+                <td class="text-right">{{ number_format($data['totalLiabilitiesAndEquity'], 2) }}</td>
+            </tr>
+        </tbody>
     </table>
 
 </body>
