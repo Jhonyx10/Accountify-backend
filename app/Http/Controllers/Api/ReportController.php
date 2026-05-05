@@ -396,7 +396,7 @@ class ReportController extends Controller
         $pdf = Pdf::loadView('reports.balance-sheet', [
             'data' => $data,
             'companyName' => $companyName,
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         return $pdf->download('balance-sheet-' . $data['as_of_date'] . '.pdf');
     }
