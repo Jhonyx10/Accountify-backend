@@ -476,7 +476,7 @@ class ReportController extends Controller
 
         $pdf = Pdf::loadView('reports.trial-balance', [
             'data' => $data,
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         $filename = 'trial-balance-' . $data['start_date'] . '-to-' . $data['end_date'] . '.pdf';
 
