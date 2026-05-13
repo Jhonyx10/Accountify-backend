@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RoleResource;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
@@ -16,6 +16,16 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
+        // return response()->json([
+        //     'config_model' => config('permission.models.model'),
+        //     'config_role' => config('permission.models.role'),
+        // ]);
+
+        \Log::info("Web API Guard Check", [
+            'auth.guards' => config('auth.guards'),
+            'auth.providers' => config('auth.providers'),
+        ]);
+
         $user = $request->user();
 
         // Filter roles by creator

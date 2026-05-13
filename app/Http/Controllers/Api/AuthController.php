@@ -75,6 +75,7 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required',
@@ -112,6 +113,8 @@ class AuthController extends Controller
                     'mode' => $user->mode,
                     'plan' => $user->plan,
                     'plan_expire_date' => $user->plan_expire_date ? $user->plan_expire_date->format('Y-m-d') : null,
+                    'permissions' => $user->getAllPermissions()->pluck('name')->unique()->values(),
+                    'roles' => $user->getRoleNames(),
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',
@@ -183,6 +186,8 @@ class AuthController extends Controller
                 'plan' => $request->user()->plan,
                 'plan_expire_date' => $request->user()->plan_expire_date?->format('Y-m-d'),
                 'created_at' => $request->user()->created_at?->format('Y-m-d H:i:s'),
+                'permissions' => $request->user()->getAllPermissions()->pluck('name')->unique()->values(),
+                'roles' => $request->user()->getRoleNames(),
             ]
         ]);
     }

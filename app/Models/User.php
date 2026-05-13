@@ -7,12 +7,24 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Plan;
+use App\Models\Company;
+use App\Models\Customer;
+use App\Models\Vendor; // Check spelling (Vender vs Vendor)
+use App\Models\Invoice;
+use App\Models\Bill;
+use App\Models\ProductService;
+use App\Models\ChartOfAccount;
+use App\Models\Order;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+
+    protected $guard_name = 'web';
 
     protected $fillable = [
         'name',
@@ -126,15 +138,48 @@ class User extends Authenticatable
      */
     public function creatorId()
     {
-        if ($this->type == 'company' || $this->type == 'super admin') {
+        // Access the raw attributes directly to avoid triggering logic
+        $type = $this->getRawOriginal('type') ?? $this->type;
+        
+        if ($type === 'company' || $type === 'super admin') {
             return $this->id;
-        } else {
-            return $this->created_by;
         }
+        
+        return $this->created_by;
     }
 
     public function company()
     {
         return $this->belongsTo(Company::class);
     }
+
+    // Inside your User.php model
+    /**
+ * Override roles relationship to bypass global scopes
+ */
+    public function roles(): BelongsToMany
+    {
+        return $this->morphToMany(
+            config('permission.models.role'),
+            'model',
+            config('permission.table_names.model_has_roles'),
+            config('permission.column_names.model_morph_key'),
+            'role_id'
+        )->withoutGlobalScopes();
+    }
+
+    /**
+     * Override permissions relationship to bypass global scopes
+     */
+    public function permissions(): BelongsToMany
+    {
+        return $this->morphToMany(
+            config('permission.models.permission'),
+            'model',
+            config('permission.table_names.model_has_permissions'),
+            config('permission.column_names.model_morph_key'),
+            'permission_id'
+        )->withoutGlobalScopes();
+    }
+
 }

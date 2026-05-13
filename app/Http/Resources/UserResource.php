@@ -39,6 +39,9 @@ class UserResource extends JsonResource
             'created_by' => $this->created_by,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'roles' => $this->whenLoaded('roles', function () {
+                return $this->roles->pluck('name');
+            }),
             'current_plan' => $this->whenLoaded('currentPlan'),
         ];
     }
