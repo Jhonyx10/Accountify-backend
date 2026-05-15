@@ -12,7 +12,7 @@ class BillController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Bill::with(['vender', 'creator', 'category']);
+        $query = Bill::with(['vender', 'creator', 'category', 'products', 'accounts']);
 
         if ($request->user()) {
             $query->where('created_by', $request->user()->id);
@@ -77,7 +77,21 @@ class BillController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        return (new BillResource($bill->load(['vender', 'creator'])))
+        if ($request->has('items') && is_array($request->items)) {
+            foreach ($request->items as $item) {
+                \App\Models\BillProduct::create([
+                    'bill_id' => $bill->id,
+                    'product_id' => $item['product_id'] ?? 0,
+                    'quantity' => $item['quantity'] ?? 1,
+                    'tax' => $item['tax'] ?? null,
+                    'discount' => $item['discount'] ?? 0,
+                    'price' => $item['price'] ?? 0,
+                    'description' => $item['description'] ?? '',
+                ]);
+            }
+        }
+
+        return (new BillResource($bill->load(['vender', 'creator', 'products'])))
             ->additional(['message' => 'Bill created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -85,7 +99,7 @@ class BillController extends Controller
 
     public function show(string $id)
     {
-        $bill = Bill::with(['vender', 'creator', 'products', 'payments'])->findOrFail($id);
+        $bill = Bill::with(['vender', 'creator', 'products', 'payments.account'])->findOrFail($id);
 
         return new BillResource($bill);
     }
@@ -107,7 +121,22 @@ class BillController extends Controller
 
         $bill->update($request->except(['bill_id', 'created_by']));
 
-        return (new BillResource($bill->load(['vender', 'creator'])))
+        if ($request->has('items') && is_array($request->items)) {
+            \App\Models\BillProduct::where('bill_id', $bill->id)->delete();
+            foreach ($request->items as $item) {
+                \App\Models\BillProduct::create([
+                    'bill_id' => $bill->id,
+                    'product_id' => $item['product_id'] ?? 0,
+                    'quantity' => $item['quantity'] ?? 1,
+                    'tax' => $item['tax'] ?? null,
+                    'discount' => $item['discount'] ?? 0,
+                    'price' => $item['price'] ?? 0,
+                    'description' => $item['description'] ?? '',
+                ]);
+            }
+        }
+
+        return (new BillResource($bill->load(['vender', 'creator', 'products'])))
             ->additional(['message' => 'Bill updated successfully']);
     }
 

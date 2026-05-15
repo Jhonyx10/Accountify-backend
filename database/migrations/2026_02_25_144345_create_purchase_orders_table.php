@@ -20,6 +20,7 @@ return new class extends Migration {
             $table->integer('category_id')->default(0);
             $table->integer('shipping_display')->default(1);
             $table->integer('discount_apply')->default(0);
+            $table->text('notes')->nullable();
             $table->integer('created_by')->default(0);
             $table->timestamps();
         });
