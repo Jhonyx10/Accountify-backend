@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Traits\BelongsToCompany;
 
 use App\Models\Traits\BelongsToCompany;
 
@@ -13,6 +14,7 @@ class Customer extends Authenticatable
     use HasFactory, BelongsToCompany;
 
     protected $fillable = [
+        'company_id',
         'customer_id',
         'name',
         'email',

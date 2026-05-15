@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToCompany;
 
 class ChartOfAccount extends Model
 {
     use HasFactory;
+    use BelongsToCompany;
 
     protected $fillable = [
         'name',
@@ -46,11 +48,30 @@ class ChartOfAccount extends Model
 
     public function parentAccount()
     {
-        return $this->belongsTo(ChartOfAccountParent::class, 'parent');
+        return $this->belongsTo(ChartOfAccount::class, 'parent');
+    }
+
+    public function childrenAccounts()
+    {
+        return $this->hasMany(ChartOfAccount::class, 'parent');
     }
 
     public function journalItems()
     {
         return $this->hasMany(JournalItem::class, 'account');
+    }
+
+    public function getBalanceAttribute()
+    {
+        $debit = $this->journalItems->sum('debit') ?? 0;
+        $credit = $this->journalItems->sum('credit') ?? 0;
+        
+        $typeName = $this->accountType ? strtolower($this->accountType->name) : '';
+        
+        if (in_array($typeName, ['assets', 'expenses', 'costs of goods sold'])) {
+            return (float) ($debit - $credit);
+        } else {
+            return (float) ($credit - $debit);
+        }
     }
 }

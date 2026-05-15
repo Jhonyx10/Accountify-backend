@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BudgetResource;
 use App\Models\Budget;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class BudgetController extends Controller
@@ -45,7 +47,20 @@ class BudgetController extends Controller
         $perPage = $request->input('per_page', 15);
         $budgets = $query->latest()->paginate($perPage);
 
-        return BudgetResource::collection($budgets);
+        // Collect all category IDs from all budgets in the current page
+        $categoryIds = [];
+        foreach ($budgets as $budget) {
+            $categoryIds = array_merge($categoryIds, $budget->getAllCategoryIds());
+        }
+        $categoryIds = array_unique($categoryIds);
+
+        // Fetch the categories
+        $categories = Category::whereIn('id', $categoryIds)->get()->keyBy('id');
+
+        // Map categories back to budgets if needed, or pass them to the resource
+        return BudgetResource::collection($budgets)->additional([
+            'categories' => $categories
+        ]);
     }
 
     /**
@@ -65,6 +80,8 @@ class BudgetController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
+
+        Log::info('Budget store requested with data:', $request->all());
 
         $budget = Budget::create([
             'name' => $request->name,
@@ -98,7 +115,13 @@ class BudgetController extends Controller
 
         $budget = $query->findOrFail($id);
 
-        return new BudgetResource($budget);
+        // Load categories for this specific budget
+        $categoryIds = $budget->getAllCategoryIds();
+        $categories = Category::whereIn('id', $categoryIds)->get()->keyBy('id');
+
+        return (new BudgetResource($budget))->additional([
+            'categories' => $categories
+        ]);
     }
 
     /**
@@ -130,14 +153,14 @@ class BudgetController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $budget->update($request->only([
-            'name',
-            'period',
-            'from',
-            'to',
-            'income_data',
-            'expense_data',
-        ]));
+        $budget->update([
+            'name' => $request->name,
+            'period' => $request->period,
+            'from' => $request->from,
+            'to' => $request->to,
+            'income_data' => $request->income_data,
+            'expense_data' => $request->expense_data,
+        ]);
 
         return (new BudgetResource($budget->load('creator')))
             ->additional(['message' => 'Budget updated successfully']);
