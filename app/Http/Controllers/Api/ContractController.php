@@ -17,19 +17,7 @@ class ContractController extends Controller
      */
     public function index(Request $request)
     {
-        $user = Auth::user();
         $query = Contract::query();
-
-        // Multi-tenancy filtering
-        if ($user->type == 'super admin') {
-            // Super admin sees all contracts
-        } elseif ($user->type == 'customer') {
-            // Customer sees only their own contracts
-            $query->where('customer', $user->id);
-        } else {
-            // Company users see contracts created by their company
-            $query->where('created_by', $user->creatorId());
-        }
 
         // Search functionality
         if ($request->has('search')) {
@@ -69,7 +57,7 @@ class ContractController extends Controller
         }
 
         // Load relationships
-        $query->with(['creator', 'customerRelation']);
+        $query->with(['creator', 'customerRelation', 'typeRelation']);
 
         // Pagination
         $perPage = $request->input('per_page', 15);
@@ -125,7 +113,6 @@ class ContractController extends Controller
             'notes' => $request->notes,
             'customer_signature' => $request->customer_signature,
             'company_signature' => $request->company_signature,
-            'created_by' => Auth::user()->creatorId(),
         ]);
 
         $contract->load(['creator', 'customerRelation']);
@@ -143,7 +130,7 @@ class ContractController extends Controller
     public function show(string $id)
     {
         $user = Auth::user();
-        $contract = Contract::with(['creator', 'customerRelation'])->find($id);
+        $contract = Contract::with(['creator', 'customerRelation', 'typeRelation'])->find($id);
 
         if (!$contract) {
             return response()->json([

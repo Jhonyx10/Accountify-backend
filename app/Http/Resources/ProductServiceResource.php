@@ -34,6 +34,7 @@ class ProductServiceResource extends JsonResource
             'unit' => $this->whenLoaded('unit'),
             'sale_account' => $this->whenLoaded('saleChartAccount'),
             'expense_account' => $this->whenLoaded('expenseChartAccount'),
+            'custom_fields' => $this->custom_fields,
         ];
     }
 }

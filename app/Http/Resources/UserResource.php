@@ -29,6 +29,13 @@ class UserResource extends JsonResource
                 ? 'Active'
                 : ($this->is_enable_login ? 'Inactive' : 'Suspended'),
             'contact' => $this->contact ?? null,
+            'tax_number' => $this->tax_number ?? null,
+            'website' => $this->website ?? null,
+            'address' => $this->address ?? null,
+            'city' => $this->city ?? null,
+            'state' => $this->state ?? null,
+            'country' => $this->country ?? null,
+            'zip' => $this->zip ?? null,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

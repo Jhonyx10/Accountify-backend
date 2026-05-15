@@ -35,7 +35,11 @@ class JournalEntryController extends Controller
 
         $query->with(['creator', 'items.chartOfAccount']);
         $perPage = $request->input('per_page', 15);
-        $journalEntries = $query->latest()->paginate($perPage);
+        if ($perPage == -1) {
+            $journalEntries = $query->latest()->get();
+        } else {
+            $journalEntries = $query->latest()->paginate($perPage);
+        }
 
         return JournalEntryResource::collection($journalEntries);
     }

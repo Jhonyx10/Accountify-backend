@@ -8,9 +8,11 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -32,6 +34,14 @@ class User extends Authenticatable
         'is_plan_purchased',
         'is_register_trial',
         'interested_plan_id',
+        'tax_number',
+        'contact',
+        'website',
+        'address',
+        'city',
+        'state',
+        'country',
+        'zip',
     ];
 
     protected $hidden = [
