@@ -102,19 +102,33 @@ class InvoiceController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        if ($request->has('items')) {
+        if ($request->has('items') && is_array($request->items)) {
             foreach ($request->items as $item) {
-                $invoice->products()->create([
-                    'product_id' => $item['product_id'] ?? 0,
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'tax' => $item['tax_rate'] ?? 0,
+                if (empty($item['item'])) continue;
+
+                \App\Models\InvoiceProduct::create([
+                    'invoice_id' => $invoice->id,
+                    'product_id' => $item['item'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'price' => $item['price'] ?? 0,
+                    'tax' => $item['tax'] ?? 0,
+                    'discount' => $item['discount'] ?? 0,
                     'description' => $item['description'] ?? '',
+                ]);
+
+                // Decrease stock
+                \App\Models\StockReport::create([
+                    'product_id' => $item['item'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'type' => 'invoice',
+                    'type_id' => $invoice->id,
+                    'description' => 'Invoice ' . $invoice->invoice_id,
+                    'created_by' => $request->user()->id,
                 ]);
             }
         }
 
-        return (new InvoiceResource($invoice->load(['customer', 'creator', 'products'])))
+        return (new InvoiceResource($invoice->load(['customer', 'creator'])))
             ->additional(['message' => 'Invoice created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -156,20 +170,35 @@ class InvoiceController extends Controller
 
         $invoice->update($request->except(['invoice_id', 'created_by', 'items']));
 
-        if ($request->has('items')) {
-            $invoice->products()->delete(); // Remove old items
+        if ($request->has('items') && is_array($request->items)) {
+            \App\Models\StockReport::where('type', 'invoice')->where('type_id', $invoice->id)->delete();
+            \App\Models\InvoiceProduct::where('invoice_id', $invoice->id)->delete();
+
             foreach ($request->items as $item) {
-                $invoice->products()->create([
-                    'product_id' => $item['product_id'] ?? 0,
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'tax' => $item['tax_rate'] ?? 0,
+                if (empty($item['item'])) continue;
+
+                \App\Models\InvoiceProduct::create([
+                    'invoice_id' => $invoice->id,
+                    'product_id' => $item['item'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'price' => $item['price'] ?? 0,
+                    'tax' => $item['tax'] ?? 0,
+                    'discount' => $item['discount'] ?? 0,
                     'description' => $item['description'] ?? '',
+                ]);
+
+                \App\Models\StockReport::create([
+                    'product_id' => $item['item'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'type' => 'invoice',
+                    'type_id' => $invoice->id,
+                    'description' => 'Invoice ' . $invoice->invoice_id . ' Update',
+                    'created_by' => $request->user()->id,
                 ]);
             }
         }
 
-        return (new InvoiceResource($invoice->load(['customer', 'creator', 'products'])))
+        return (new InvoiceResource($invoice->load(['customer', 'creator'])))
             ->additional(['message' => 'Invoice updated successfully']);
     }
 
@@ -179,6 +208,10 @@ class InvoiceController extends Controller
     public function destroy(string $id)
     {
         $invoice = Invoice::findOrFail($id);
+        
+        \App\Models\StockReport::where('type', 'invoice')->where('type_id', $invoice->id)->delete();
+        \App\Models\InvoiceProduct::where('invoice_id', $invoice->id)->delete();
+        
         $invoice->delete();
 
         return response()->json([
