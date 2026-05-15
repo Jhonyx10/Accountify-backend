@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToCompany;
 
 class Bill extends Model
 {
     use HasFactory;
+    use BelongsToCompany;
 
     protected $fillable = [
         'bill_id',
@@ -61,5 +63,17 @@ class Bill extends Model
     public function accounts()
     {
         return $this->hasMany(BillAccount::class, 'ref_id')->where('type', 'Bill');
+    }
+
+    public function getTotalAmountAttribute()
+    {
+        $productsTotal = $this->products->sum(function ($product) {
+            return ($product->price * $product->quantity) - $product->discount;
+            // Note: Does not include complex tax logic for now
+        });
+
+        $accountsTotal = $this->accounts->sum('price');
+
+        return $productsTotal + $accountsTotal;
     }
 }

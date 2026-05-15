@@ -18,9 +18,9 @@ class CustomerController extends Controller
     {
         $query = Customer::with('creator');
 
-        // Filter by created_by (multi-tenancy)
+        // Filter by company_id (multi-tenancy)
         if ($request->user()) {
-            $query->where('created_by', $request->user()->id);
+            $query->where('company_id', $request->user()->creatorId());
         }
 
         // Search functionality
@@ -77,10 +77,12 @@ class CustomerController extends Controller
         }
 
         // Generate customer_id
-        $lastCustomer = Customer::where('created_by', $request->user()->id)->latest('customer_id')->first();
+        $companyId = $request->user()->creatorId();
+        $lastCustomer = Customer::where('company_id', $companyId)->latest('customer_id')->first();
         $customerId = $lastCustomer ? $lastCustomer->customer_id + 1 : 1;
 
         $customer = Customer::create([
+            'company_id' => $companyId,
             'customer_id' => $customerId,
             'name' => $request->name,
             'email' => $request->email,
@@ -113,9 +115,11 @@ class CustomerController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
-        $customer = Customer::with(['creator', 'invoices', 'proposals', 'retainers'])->findOrFail($id);
+        $customer = Customer::where('company_id', $request->user()->creatorId())
+            ->with(['creator', 'invoices', 'proposals', 'retainers'])
+            ->findOrFail($id);
 
         return new CustomerResource($customer);
     }
@@ -125,7 +129,7 @@ class CustomerController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Customer::where('company_id', $request->user()->creatorId())->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
@@ -140,7 +144,7 @@ class CustomerController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->except(['password', 'customer_id', 'created_by']);
+        $data = $request->except(['password', 'customer_id', 'created_by', 'company_id']);
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
@@ -155,9 +159,9 @@ class CustomerController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Customer::where('company_id', $request->user()->creatorId())->findOrFail($id);
         $customer->delete();
 
         return response()->json([
