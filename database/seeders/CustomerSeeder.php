@@ -3,45 +3,63 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class CustomerSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        $companyId = 2;
+        $company = User::where('email', 'company@example.com')->first();
         
-        for ($i = 1; $i <= 10; $i++) {
-            Customer::create([
-                'customer_id' => 100 + $i,
-                'name' => 'Premium Customer ' . $i,
-                'email' => 'premium.cust' . $i . '@company2.com',
-                'password' => Hash::make('password'),
-                'contact' => '0912345678' . $i,
-                'avatar' => '',
-                'created_by' => $companyId,
-                'is_active' => 1,
-                'is_enable_login' => 1,
-                'billing_name' => 'Premium Cust ' . $i,
-                'billing_country' => 'Philippines',
-                'billing_state' => 'Metro Manila',
-                'billing_city' => 'Makati',
-                'billing_phone' => '8888777' . $i,
-                'billing_zip' => '1200',
-                'billing_address' => 'Ayala Ave ' . $i,
-                'shipping_name' => 'Premium Cust ' . $i,
-                'shipping_country' => 'Philippines',
-                'shipping_state' => 'Metro Manila',
-                'shipping_city' => 'Makati',
-                'shipping_phone' => '8888777' . $i,
-                'shipping_zip' => '1200',
-                'shipping_address' => 'Ayala Ave ' . $i,
-                'lang' => 'en',
-                'balance' => 0.00
-            ]);
+        if (!$company) {
+            return;
         }
 
-        echo "Seeded 10 customers for Company ID 2.\n";
+        $customers = [
+            [
+                'name' => 'John Doe',
+                'email' => 'john@example.com',
+                'contact' => '1234567890',
+            ],
+            [
+                'name' => 'Jane Smith',
+                'email' => 'jane@example.com',
+                'contact' => '0987654321',
+            ],
+            [
+                'name' => 'Acme Supplies',
+                'email' => 'acme@example.com',
+                'contact' => '5551234567',
+            ],
+            [
+                'name' => 'Global Solutions',
+                'email' => 'global@example.com',
+                'contact' => '1112223333',
+            ],
+            [
+                'name' => 'Tech Innovators',
+                'email' => 'tech@example.com',
+                'contact' => '9998887777',
+            ],
+        ];
+
+        foreach ($customers as $index => $customerData) {
+            Customer::firstOrCreate([
+                'email' => $customerData['email'],
+            ], [
+                'customer_id' => $index + 1,
+                'name' => $customerData['name'],
+                'password' => Hash::make('password'),
+                'contact' => $customerData['contact'],
+                'created_by' => $company->id,
+                'is_active' => 1,
+                'is_enable_login' => 1,
+            ]);
+        }
     }
 }

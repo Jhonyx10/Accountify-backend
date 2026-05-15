@@ -18,11 +18,6 @@ class CustomerController extends Controller
     {
         $query = Customer::with('creator');
 
-        // Filter by company_id (multi-tenancy)
-        if ($request->user()) {
-            $query->where('company_id', $request->user()->creatorId());
-        }
-
         // Search functionality
         if ($request->has('search')) {
             $search = $request->search;
@@ -89,7 +84,6 @@ class CustomerController extends Controller
             'password' => Hash::make($request->password),
             'contact' => $request->contact,
             'tax_number' => $request->tax_number,
-            'created_by' => $request->user()->id,
             'billing_name' => $request->billing_name,
             'billing_country' => $request->billing_country,
             'billing_state' => $request->billing_state,

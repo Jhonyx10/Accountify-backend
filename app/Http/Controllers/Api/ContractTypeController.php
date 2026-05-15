@@ -16,15 +16,7 @@ class ContractTypeController extends Controller
      */
     public function index(Request $request)
     {
-        $user = Auth::user();
-        $creatorId = $user->creatorId();
-
         $query = ContractType::with('creator')->withCount('contracts');
-
-        // Multi-tenancy filtering
-        if ($user->type != 'super admin') {
-            $query->where('created_by', $creatorId);
-        }
 
         // Search by name
         if ($request->has('search')) {
@@ -51,11 +43,8 @@ class ContractTypeController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $creatorId = $request->user()->creatorId();
-
         $contractType = ContractType::create([
             'name' => $request->name,
-            'created_by' => $creatorId,
         ]);
 
         return (new ContractTypeResource($contractType->load('creator')))
@@ -69,16 +58,7 @@ class ContractTypeController extends Controller
      */
     public function show(string $id)
     {
-        $user = Auth::user();
-        $creatorId = $user->creatorId();
-
-        $query = ContractType::with('creator')->withCount('contracts');
-
-        if ($user->type != 'super admin') {
-            $query->where('created_by', $creatorId);
-        }
-
-        $contractType = $query->findOrFail($id);
+        $contractType = ContractType::with('creator')->withCount('contracts')->findOrFail($id);
 
         return new ContractTypeResource($contractType);
     }
@@ -88,16 +68,7 @@ class ContractTypeController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $user = Auth::user();
-        $creatorId = $user->creatorId();
-
-        $query = ContractType::query();
-
-        if ($user->type != 'super admin') {
-            $query->where('created_by', $creatorId);
-        }
-
-        $contractType = $query->findOrFail($id);
+        $contractType = ContractType::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
@@ -118,16 +89,7 @@ class ContractTypeController extends Controller
      */
     public function destroy(string $id)
     {
-        $user = Auth::user();
-        $creatorId = $user->creatorId();
-
-        $query = ContractType::query();
-
-        if ($user->type != 'super admin') {
-            $query->where('created_by', $creatorId);
-        }
-
-        $contractType = $query->findOrFail($id);
+        $contractType = ContractType::findOrFail($id);
         $contractType->delete();
 
         return response()->json([

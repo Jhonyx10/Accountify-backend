@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Traits\BelongsToCompany;
 
+use App\Models\Traits\BelongsToCompany;
+
 class Customer extends Authenticatable
 {
-    use HasFactory;
-    use BelongsToCompany;
+    use HasFactory, BelongsToCompany;
 
     protected $fillable = [
         'company_id',
