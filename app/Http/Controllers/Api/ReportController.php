@@ -15,6 +15,7 @@ use App\Models\Vender;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -232,15 +233,37 @@ class ReportController extends Controller
 
         $asOfDate = $request->as_of_date ?? date('Y-m-d');
 
-        // Get all accounts with their balances
-        $accounts = ChartOfAccount::where('created_by', $creatorId)->get();
+        // Maps DB subtype names → human-readable L1 category labels shown in the report
+        $subtypeCategoryMap = [
+            // Assets
+            'Bank & Cash'       => 'Current Assets',
+            'Current Asset'     => 'Current Assets',
+            'Inventory'         => 'Current Assets',
+            'Prepayment'        => 'Current Assets',
+            'Fixed Asset'       => 'Long-term Assets',
+            'Non-current Asset' => 'Long-term Assets',
+            'Depreciation'      => 'Long-term Assets',
+            // Liabilities
+            'Current Liability'     => 'Current Liabilities',
+            'Liability'             => 'Other Liabilities',
+            'Non-current Liability' => 'Long-term Liabilities',
+            // Equity
+            'Equity' => 'Equity',
+        ];
 
-        $assets = [];
-        $liabilities = [];
-        $equity = [];
-        $totalAssets = 0;
-        $totalLiabilities = 0;
-        $totalEquity = 0;
+        // Get all accounts with their balances, including parent account info
+        $accounts = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount'])
+            ->where('created_by', $creatorId)
+            ->get();
+
+        $sections = [
+            'Assets' => ['total' => 0, 'subtypes' => []],
+            'Liabilities' => ['total' => 0, 'subtypes' => []],
+            'Equity' => ['total' => 0, 'subtypes' => []],
+        ];
+
+        $totalIncome = 0;
+        $totalExpense = 0;
 
         foreach ($accounts as $account) {
             // Calculate balance from journal items
@@ -248,55 +271,134 @@ class ReportController extends Controller
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->where('journal_entries.date', '<=', $asOfDate)
-                ->sum('journal_items.debit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $creditSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->where('journal_entries.date', '<=', $asOfDate)
-                ->sum('journal_items.credit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
-            $balance = $debitSum - $creditSum;
-
-            if ($balance != 0) {
-                $accountData = [
-                    'code' => $account->code,
-                    'name' => $account->name,
-                    'balance' => (float) abs($balance),
-                ];
-
-                // Categorize by account type
-                if (in_array($account->type, [1, 2, 3])) { // Assets (assuming 1=Current Assets, 2=Fixed Assets, 3=Other Assets)
-                    $assets[] = $accountData;
-                    $totalAssets += abs($balance);
-                } elseif (in_array($account->type, [4, 5])) { // Liabilities (assuming 4=Current Liabilities, 5=Long-term Liabilities)
-                    $liabilities[] = $accountData;
-                    $totalLiabilities += abs($balance);
-                } elseif ($account->type == 6) { // Equity (assuming 6=Equity)
-                    $equity[] = $accountData;
-                    $totalEquity += abs($balance);
-                }
+            $typeName = $account->accountType?->name ?? '';
+            $subTypeName = $account->accountSubType?->name ?? 'Other';
+            // L1 label: map subtype to a readable category, fallback to subtype name itself
+            $categoryLabel = $subtypeCategoryMap[$subTypeName] ?? $subTypeName;
+            // L2 label: the subtype name (e.g. "Bank & Cash")
+            $groupLabel = $subTypeName;
+            // L3 label source: account's parent account name, fallback to account name
+            $parentName = $account->parentAccount?->name ?? $account->name;
+            
+            $balance = 0;
+            if ($typeName === 'Assets') {
+                $balance = $debitSum - $creditSum;
+            } elseif ($typeName === 'Liabilities' || $typeName === 'Equity') {
+                $balance = $creditSum - $debitSum;
+            } elseif ($typeName === 'Income') {
+                $totalIncome += ($creditSum - $debitSum);
+                continue;
+            } elseif ($typeName === 'Expenses' || $typeName === 'Costs of Goods Sold') {
+                $totalExpense += ($debitSum - $creditSum);
+                continue;
             }
+
+            if ($balance != 0 && isset($sections[$typeName])) {
+                $sections[$typeName]['total'] += $balance;
+                
+                // L1: category (e.g. "Current Assets")
+                if (!isset($sections[$typeName]['subtypes'][$categoryLabel])) {
+                    $sections[$typeName]['subtypes'][$categoryLabel] = [
+                        'name' => $categoryLabel,
+                        'total' => 0,
+                        'groups' => []
+                    ];
+                }
+                $sections[$typeName]['subtypes'][$categoryLabel]['total'] += $balance;
+                
+                // L2: subtype (e.g. "Bank & Cash")
+                if (!isset($sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel])) {
+                    $sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel] = [
+                        'name' => $groupLabel,
+                        'total' => 0,
+                        'items' => []
+                    ];
+                }
+                $sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel]['total'] += $balance;
+                $sections[$typeName]['subtypes'][$categoryLabel]['groups'][$groupLabel]['items'][] = [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'code' => $account->code,
+                    'balance' => (float)$balance
+                ];
+            }
+        }
+        
+        $netIncome = $totalIncome - $totalExpense;
+        if ($netIncome != 0) {
+            $typeName = 'Equity';
+            $subTypeName = 'Current Year Earnings';
+            $parentName = 'Net Income';
+            
+            if (!isset($sections[$typeName]['subtypes'][$subTypeName])) {
+                $sections[$typeName]['subtypes'][$subTypeName] = ['name' => $subTypeName, 'total' => 0, 'groups' => []];
+            }
+            $sections[$typeName]['subtypes'][$subTypeName]['total'] += $netIncome;
+            $sections[$typeName]['total'] += $netIncome;
+            
+            if (!isset($sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName])) {
+                $sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName] = ['name' => $parentName, 'total' => 0, 'items' => []];
+            }
+            $sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName]['total'] += $netIncome;
+            $sections[$typeName]['subtypes'][$subTypeName]['groups'][$parentName]['items'][] = [
+                'id' => -1,
+                'name' => 'Net Income',
+                'code' => '',
+                'balance' => (float)$netIncome
+            ];
+        }
+
+        // Convert associative arrays to indexed for JSON
+        foreach ($sections as $type => &$section) {
+            foreach ($section['subtypes'] as &$subtype) {
+                $subtype['groups'] = array_values($subtype['groups']);
+            }
+            $section['subtypes'] = array_values($section['subtypes']);
         }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'assets' => [
-                    'accounts' => $assets,
-                    'total' => (float) $totalAssets,
-                ],
-                'liabilities' => [
-                    'accounts' => $liabilities,
-                    'total' => (float) $totalLiabilities,
-                ],
-                'equity' => [
-                    'accounts' => $equity,
-                    'total' => (float) $totalEquity,
-                ],
+                'assets' => $sections['Assets']['subtypes'],
+                'liabilities' => $sections['Liabilities']['subtypes'],
+                'equity' => $sections['Equity']['subtypes'],
+                'totalAssets' => (float)$sections['Assets']['total'],
+                'totalLiabilities' => (float)$sections['Liabilities']['total'],
+                'totalEquity' => (float)$sections['Equity']['total'],
+                'totalLiabilitiesAndEquity' => (float)($sections['Liabilities']['total'] + $sections['Equity']['total']),
                 'as_of_date' => $asOfDate,
             ]
         ]);
+    }
+
+    /**
+     * Balance Sheet Export
+     */
+    public function balanceSheetExport(Request $request)
+    {
+        $response = $this->balanceSheet($request);
+        $data = $response->getData(true)['data'];
+
+        $user = Auth::user();
+        $company = \App\Models\User::find($user->creatorId());
+        $companyName = $company ? $company->name : 'Company';
+
+        $pdf = Pdf::loadView('reports.balance-sheet', [
+            'data' => $data,
+            'companyName' => $companyName,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('balance-sheet-' . $data['as_of_date'] . '.pdf');
     }
 
     /**
@@ -310,7 +412,7 @@ class ReportController extends Controller
         $startDate = $request->start_date ?? date('Y-01-01');
         $endDate = $request->end_date ?? date('Y-12-31');
 
-        $accounts = ChartOfAccount::where('created_by', $creatorId)->get();
+        $accounts = ChartOfAccount::with(['accountType'])->where('created_by', $creatorId)->get();
 
         $trialBalanceData = [];
         $totalDebit = 0;
@@ -321,24 +423,33 @@ class ReportController extends Controller
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->whereBetween('journal_entries.date', [$startDate, $endDate])
-                ->sum('journal_items.debit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.debit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
             $creditSum = JournalItem::join('journal_entries', 'journal_items.journal', '=', 'journal_entries.id')
                 ->where('journal_entries.created_by', $creatorId)
                 ->where('journal_items.account', $account->id)
                 ->whereBetween('journal_entries.date', [$startDate, $endDate])
-                ->sum('journal_items.credit');
+                ->selectRaw("SUM(CAST(COALESCE(NULLIF(journal_items.credit, ''), '0') AS NUMERIC)) as total")
+                ->value('total') ?? 0;
 
-            if ($debitSum > 0 || $creditSum > 0) {
+            $balance = $debitSum - $creditSum;
+
+            if ($balance != 0) {
+                $netDebit = $balance > 0 ? $balance : null;
+                $netCredit = $balance < 0 ? abs($balance) : null;
+
                 $trialBalanceData[] = [
+                    'id' => $account->id,
                     'code' => $account->code,
                     'name' => $account->name,
-                    'debit' => (float) $debitSum,
-                    'credit' => (float) $creditSum,
+                    'type' => $account->accountType?->name ?? 'Other',
+                    'debit' => $netDebit ? (float) $netDebit : null,
+                    'credit' => $netCredit ? (float) $netCredit : null,
                 ];
 
-                $totalDebit += $debitSum;
-                $totalCredit += $creditSum;
+                if ($netDebit) $totalDebit += $netDebit;
+                if ($netCredit) $totalCredit += $netCredit;
             }
         }
 
@@ -353,6 +464,23 @@ class ReportController extends Controller
                 'end_date' => $endDate,
             ]
         ]);
+    }
+
+    /**
+     * Trial Balance Export (PDF)
+     */
+    public function trialBalanceExport(Request $request)
+    {
+        $response = $this->trialBalance($request);
+        $data = $response->getData(true)['data'];
+
+        $pdf = Pdf::loadView('reports.trial-balance', [
+            'data' => $data,
+        ])->setPaper('a4', 'landscape');
+
+        $filename = 'trial-balance-' . $data['start_date'] . '-to-' . $data['end_date'] . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     /**

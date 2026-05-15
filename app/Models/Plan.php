@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Plan extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -23,6 +24,7 @@ class Plan extends Model
         'trial',
         'trial_days',
         'is_disable',
+        'max_invoices',
     ];
 
     protected $casts = [
@@ -33,6 +35,7 @@ class Plan extends Model
         'storage_limit' => 'float',
         'trial' => 'integer',
         'is_disable' => 'integer',
+        'max_invoices' => 'integer',
     ];
 
     // Relationships
