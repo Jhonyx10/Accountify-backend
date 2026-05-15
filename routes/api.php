@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\ChartOfAccountTypeController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\ContractTypeController;
 use App\Http\Controllers\Api\CouponController;
@@ -65,6 +66,7 @@ Route::get('/health', function () {
 // Authentication routes (public)
 Route::post('/register', [AuthController::class , 'register']);
 Route::post('/login', [AuthController::class , 'login']);
+
 
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -145,8 +147,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Debit Note Management
         Route::apiResource('debit-notes', DebitNoteController::class);
 
-        // Proposal Management
-        Route::apiResource('proposals', ProposalController::class);
+    // Categories (Listing only)
+    Route::get('categories', [CategoryController::class, 'index']);
+
+    // Registration and Login are already defined above outside the group.
+
+    // Proposal Management
+    Route::apiResource('proposals', ProposalController::class);
 
         // Retainer Management
         Route::apiResource('retainers', RetainerController::class);
