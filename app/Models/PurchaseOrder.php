@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToCompany;    
 
 class PurchaseOrder extends Model
 {
-    use HasFactory;
+    use BelongsToCompany;
 
     protected $fillable = [
         'po_number',
