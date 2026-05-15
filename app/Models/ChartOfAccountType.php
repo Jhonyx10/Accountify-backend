@@ -33,4 +33,9 @@ class ChartOfAccountType extends Model
     {
         return $this->hasMany(ChartOfAccount::class, 'type');
     }
+
+    public function subTypes()
+    {
+        return $this->hasMany(ChartOfAccountSubType::class, 'type');
+    }
 }

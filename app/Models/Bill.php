@@ -62,4 +62,16 @@ class Bill extends Model
     {
         return $this->hasMany(BillAccount::class, 'ref_id')->where('type', 'Bill');
     }
+
+    public function getTotalAmountAttribute()
+    {
+        $productsTotal = $this->products->sum(function ($product) {
+            return ($product->price * $product->quantity) - $product->discount;
+            // Note: Does not include complex tax logic for now
+        });
+
+        $accountsTotal = $this->accounts->sum('price');
+
+        return $productsTotal + $accountsTotal;
+    }
 }

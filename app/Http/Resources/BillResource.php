@@ -26,6 +26,7 @@ class BillResource extends JsonResource
             'status' => $this->status,
             'shipping_display' => $this->shipping_display,
             'discount_apply' => $this->discount_apply,
+            'amount' => $this->total_amount,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'vender' => $this->whenLoaded('vender', function () {

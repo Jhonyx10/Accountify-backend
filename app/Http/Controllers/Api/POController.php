@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BillResource;
 use App\Http\Resources\POResource;
+use App\Models\Bill;
+use App\Models\BillProduct;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderProduct;
 use Illuminate\Http\Request;
@@ -21,7 +24,7 @@ class POController extends Controller
         }
 
         $perPage = $request->input('per_page', 15);
-        $pos = $query->with(['vender', 'items'])->latest()->paginate($perPage);
+        $pos = $query->with(['vender', 'products'])->latest()->paginate($perPage);
 
         return POResource::collection($pos);
     }
@@ -59,6 +62,7 @@ class POController extends Controller
                 'category_id' => $request->category_id ?? 0,
                 'shipping_display' => $request->shipping_display ?? 1,
                 'discount_apply' => $request->discount_apply ?? 0,
+                'notes' => $request->notes,
                 'created_by' => $request->user()->id,
             ]);
 
@@ -76,7 +80,7 @@ class POController extends Controller
 
             DB::commit();
 
-            return (new POResource($po))
+            return (new POResource($po->load(['vender', 'products'])))
                 ->additional(['message' => 'Purchase Order created successfully'])
                 ->response()
                 ->setStatusCode(201);
@@ -89,9 +93,7 @@ class POController extends Controller
 
     public function show(string $id)
     {
-        $po = PurchaseOrder::findOrFail($id);
-        $items = PurchaseOrderProduct::where('purchase_order_id', $po->id)->get();
-        $po->setAttribute('items', $items);
+        $po = PurchaseOrder::with(['vender', 'products'])->findOrFail($id);
         return new POResource($po);
     }
 
@@ -132,7 +134,7 @@ class POController extends Controller
 
             DB::commit();
 
-            return (new POResource($po))
+            return (new POResource($po->load(['vender', 'products'])))
                 ->additional(['message' => 'Purchase Order updated successfully']);
 
         } catch (\Exception $e) {
@@ -148,5 +150,63 @@ class POController extends Controller
         $po->delete();
 
         return response()->json(['message' => 'Purchase Order deleted successfully']);
+    }
+
+    /**
+     * Convert a Purchase Order into a Bill.
+     */
+    public function convertToBill(string $id, Request $request)
+    {
+        $po = PurchaseOrder::with('products')->findOrFail($id);
+
+        if ($po->status === 2) {
+            return response()->json(['message' => 'This PO has already been converted to a bill.'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $lastBill = Bill::where('created_by', $request->user()->id)->latest('id')->first();
+            $billId = $lastBill ? ((int) $lastBill->bill_id + 1) : 1;
+
+            $bill = Bill::create([
+                'bill_id' => (string) $billId,
+                'vender_id' => $po->vender_id,
+                'bill_date' => now()->toDateString(),
+                'due_date' => $po->delivery_date ?? now()->addDays(30)->toDateString(),
+                'category_id' => $po->category_id ?? 0,
+                'order_number' => $po->po_number,
+                'status' => 1, // Open
+                'shipping_display' => $po->shipping_display,
+                'discount_apply' => $po->discount_apply,
+                'created_by' => $request->user()->id,
+            ]);
+
+            foreach ($po->products as $item) {
+                BillProduct::create([
+                    'bill_id' => $bill->id,
+                    'product_id' => $item->product_id,
+                    'quantity' => $item->quantity,
+                    'tax' => $item->tax,
+                    'discount' => $item->discount,
+                    'price' => $item->price,
+                    'description' => $item->description,
+                ]);
+            }
+
+            // Mark PO as Billed (status = 2)
+            $po->update(['status' => 2]);
+
+            DB::commit();
+
+            return (new BillResource($bill->load(['vender', 'products'])))
+                ->additional(['message' => 'Purchase Order converted to Bill successfully'])
+                ->response()
+                ->setStatusCode(201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to convert PO to Bill', 'error' => $e->getMessage()], 500);
+        }
     }
 }

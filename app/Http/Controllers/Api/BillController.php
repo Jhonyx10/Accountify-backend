@@ -12,7 +12,7 @@ class BillController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Bill::with(['vender', 'creator', 'category']);
+        $query = Bill::with(['vender', 'creator', 'category', 'products', 'accounts']);
 
         if ($request->user()) {
             $query->where('created_by', $request->user()->id);
@@ -111,7 +111,7 @@ class BillController extends Controller
 
     public function show(string $id)
     {
-        $bill = Bill::with(['vender', 'creator', 'products', 'payments'])->findOrFail($id);
+        $bill = Bill::with(['vender', 'creator', 'products', 'payments.account'])->findOrFail($id);
 
         return new BillResource($bill);
     }
