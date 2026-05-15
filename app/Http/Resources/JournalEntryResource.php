@@ -19,7 +19,8 @@ class JournalEntryResource extends JsonResource
             'date' => $this->date?->format('Y-m-d'),
             'reference' => $this->reference,
             'description' => $this->description,
-            'journal_id' => $this->journal_id,
+            'journal_id' => $this->formatted_journal_id ?? ('JE-' . str_pad($this->journal_id, 4, '0', STR_PAD_LEFT)),
+            'amount' => $this->amount,
             'created_by' => $this->created_by,
             'creator' => $this->whenLoaded('creator', function () {
                 return [

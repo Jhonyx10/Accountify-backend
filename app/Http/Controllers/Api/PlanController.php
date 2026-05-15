@@ -42,6 +42,7 @@ class PlanController extends Controller
             'max_users' => 'nullable|integer|min:0',
             'max_customers' => 'nullable|integer|min:0',
             'max_venders' => 'nullable|integer|min:0',
+            'max_invoices' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -55,6 +56,7 @@ class PlanController extends Controller
             'max_users' => $request->max_users ?? 0,
             'max_customers' => $request->max_customers ?? 0,
             'max_venders' => $request->max_venders ?? 0,
+            'max_invoices' => $request->max_invoices ?? 0,
             'storage_limit' => $request->storage_limit ?? 0,
             'description' => $request->description,
             'image' => $request->image,
@@ -85,6 +87,10 @@ class PlanController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'price' => 'sometimes|required|numeric|min:0',
             'duration' => 'sometimes|required|string',
+            'max_users' => 'nullable|integer|min:0',
+            'max_customers' => 'nullable|integer|min:0',
+            'max_venders' => 'nullable|integer|min:0',
+            'max_invoices' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {

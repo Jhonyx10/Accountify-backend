@@ -18,18 +18,21 @@ class Transfer extends Model
         'payment_method',
         'reference',
         'description',
+        'status',
+        'journal_entry_id',
         'created_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'date' => 'date',
-            'amount' => 'decimal:2',
-            'from_account' => 'integer',
-            'to_account' => 'integer',
-            'payment_method' => 'integer',
-            'created_by' => 'integer',
+            'date'             => 'date',
+            'amount'           => 'decimal:2',
+            'from_account'     => 'integer',
+            'to_account'       => 'integer',
+            'payment_method'   => 'integer',
+            'journal_entry_id' => 'integer',
+            'created_by'       => 'integer',
         ];
     }
 
@@ -46,6 +49,11 @@ class Transfer extends Model
     public function toBankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class, 'to_account');
+    }
+
+    public function journalEntry(): BelongsTo
+    {
+        return $this->belongsTo(JournalEntry::class, 'journal_entry_id');
     }
 }
 

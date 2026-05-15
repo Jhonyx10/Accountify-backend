@@ -15,6 +15,7 @@ class Tax extends Model
     protected $fillable = [
         'name',
         'rate',
+        'type',
         'created_by',
     ];
 

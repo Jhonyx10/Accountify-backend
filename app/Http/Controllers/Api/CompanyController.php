@@ -26,15 +26,6 @@ class CompanyController extends Controller
 
         $query = User::where('type', 'company');
 
-        // Search functionality
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
-            });
-        }
-
         // Pagination
         $perPage = $request->input('per_page', 15);
         $companies = $query->with(['currentPlan'])->paginate($perPage);
@@ -58,6 +49,14 @@ class CompanyController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Password::min(8)],
             'plan_id' => 'nullable|exists:plans,id',
+            'tax_number' => 'nullable|string|max:255',
+            'contact' => 'required|string|max:255',
+            'website' => 'nullable|string|max:255',
+            'address' => 'required|string',
+            'city' => 'required|string|max:255',
+            'state' => 'required|string|max:255',
+            'country' => 'required|string|max:255',
+            'zip' => 'required|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -77,6 +76,14 @@ class CompanyController extends Controller
             'created_by' => $user->id,
             'is_active' => 1,
             'is_enable_login' => 1,
+            'tax_number' => $request->tax_number,
+            'contact' => $request->contact,
+            'website' => $request->website,
+            'address' => $request->address,
+            'city' => $request->city,
+            'state' => $request->state,
+            'country' => $request->country,
+            'zip' => $request->zip,
         ]);
 
         // Default Company Scaffolding
@@ -103,10 +110,21 @@ class CompanyController extends Controller
         }
 
         $company = User::where('type', 'company')
-            ->with(['currentPlan'])
+            ->with(['currentPlan', 'orders' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            }])
             ->findOrFail($id);
 
-        return new UserResource($company);
+        return (new UserResource($company))
+            ->additional([
+                'usage' => [
+                    'users' => $company->createdUsers()->count(),
+                    'customers' => $company->customers()->count(),
+                    'venders' => $company->vendors()->count(),
+                ],
+                'billing_history' => $company->orders,
+                'company_users' => $company->createdUsers()->select('id', 'name', 'email', 'type as role')->get(),
+            ]);
     }
 
     /**
@@ -129,6 +147,14 @@ class CompanyController extends Controller
             'plan_id' => 'nullable|exists:plans,id',
             'is_active' => 'nullable|boolean',
             'is_enable_login' => 'nullable|boolean',
+            'tax_number' => 'nullable|string|max:255',
+            'contact' => 'sometimes|required|string|max:255',
+            'website' => 'nullable|string|max:255',
+            'address' => 'sometimes|required|string',
+            'city' => 'sometimes|required|string|max:255',
+            'state' => 'sometimes|required|string|max:255',
+            'country' => 'sometimes|required|string|max:255',
+            'zip' => 'sometimes|required|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -140,6 +166,14 @@ class CompanyController extends Controller
             'email',
             'is_active',
             'is_enable_login',
+            'tax_number',
+            'contact',
+            'website',
+            'address',
+            'city',
+            'state',
+            'country',
+            'zip',
         ]);
 
         if ($request->has('plan_id')) {
@@ -158,7 +192,7 @@ class CompanyController extends Controller
     }
 
     /**
-     * Remove the specified company.
+     * Remove the specified company (Soft Delete).
      */
     public function destroy(Request $request, string $id)
     {
@@ -170,13 +204,80 @@ class CompanyController extends Controller
 
         $company = User::where('type', 'company')->findOrFail($id);
 
-        // Delete related company data (or use soft deletes / cascading)
-        // User::where('created_by', $company->id)->delete();
-        
+        // Soft delete the company
         $company->delete();
 
         return response()->json([
             'message' => 'Company deleted successfully'
+        ]);
+    }
+
+    /**
+     * Suspend the specified company.
+     */
+    public function suspend(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'super admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $company = User::where('type', 'company')->findOrFail($id);
+        $company->update([
+            'is_active' => 0,
+            'is_enable_login' => 0
+        ]);
+
+        return response()->json([
+            'message' => 'Company suspended successfully',
+            'data' => new UserResource($company)
+        ]);
+    }
+
+    /**
+     * Activate the specified company.
+     */
+    public function activate(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'super admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $company = User::where('type', 'company')->findOrFail($id);
+        $company->update([
+            'is_active' => 1,
+            'is_enable_login' => 1
+        ]);
+
+        return response()->json([
+            'message' => 'Company activated successfully',
+            'data' => new UserResource($company)
+        ]);
+    }
+
+    /**
+     * Impersonate the specified company admin.
+     */
+    public function impersonate(Request $request, string $id)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'super admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $company = User::where('type', 'company')->findOrFail($id);
+        
+        // Generate a new token for the company user
+        $token = $company->createToken('impersonation-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Impersonation token generated',
+            'token' => $token,
+            'user' => new UserResource($company)
         ]);
     }
 }

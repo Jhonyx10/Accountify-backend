@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Models\Traits\BelongsToCompany;
 
 class Contract extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToCompany, SoftDeletes;
 
     protected $fillable = [
         'customer',
@@ -45,6 +48,11 @@ class Contract extends Model
     public function customerRelation(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'customer');
+    }
+
+    public function typeRelation(): BelongsTo
+    {
+        return $this->belongsTo(ContractType::class, 'type');
     }
 }
 
