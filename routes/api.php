@@ -166,14 +166,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Dashboard
         Route::get('dashboard', [DashboardController::class , 'index']);
 
-        // Reports
-        Route::get('reports/income-summary', [ReportController::class , 'incomeSummary']);
-        Route::get('reports/expense-summary', [ReportController::class , 'expenseSummary']);
-        Route::get('reports/income-vs-expense', [ReportController::class , 'incomeVsExpense']);
-        Route::get('reports/profit-loss', [ReportController::class , 'profitLoss']);
-        Route::get('reports/balance-sheet', [ReportController::class , 'balanceSheet']);
-        Route::get('reports/trial-balance', [ReportController::class , 'trialBalance']);
-        Route::get('reports/account-statement', [ReportController::class , 'accountStatement']);
+    // Reports
+    Route::get('reports/income-summary', [ReportController::class, 'incomeSummary']);
+    Route::get('reports/expense-summary', [ReportController::class, 'expenseSummary']);
+    Route::get('reports/income-vs-expense', [ReportController::class, 'incomeVsExpense']);
+    Route::get('reports/profit-loss', [ReportController::class, 'profitLoss']);
+    Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet']);
+    Route::get('reports/balance-sheet/export', [ReportController::class, 'balanceSheetExport']);
+    Route::get('reports/trial-balance', [ReportController::class, 'trialBalance']);
+    Route::get('reports/trial-balance/export', [ReportController::class, 'trialBalanceExport']);
+    Route::get('reports/account-statement', [ReportController::class, 'accountStatement']);
 
         // HIGH PRIORITY FEATURES
     
