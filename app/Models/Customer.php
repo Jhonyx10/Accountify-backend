@@ -11,6 +11,7 @@ class Customer extends Authenticatable
     use HasFactory;
 
     protected $fillable = [
+        'company_id',
         'customer_id',
         'name',
         'email',
