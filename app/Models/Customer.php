@@ -37,6 +37,7 @@ class Customer extends Authenticatable
     protected $appends = ['referral_link'];
 
     protected $fillable = [
+        'company_id',
         'customer_id',
         'name',
         'email',

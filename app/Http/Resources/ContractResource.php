@@ -36,6 +36,12 @@ class ContractResource extends JsonResource
                     'email' => $this->customerRelation->email,
                 ];
             }),
+            'type_data' => $this->whenLoaded('typeRelation', function () {
+                return [
+                    'id' => $this->typeRelation->id,
+                    'name' => $this->typeRelation->name,
+                ];
+            }),
             'creator' => $this->whenLoaded('creator', function () {
                 return [
                     'id' => $this->creator->id,

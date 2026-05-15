@@ -16,15 +16,7 @@ class AssetController extends Controller
      */
     public function index(Request $request)
     {
-        $user = Auth::user();
         $query = Asset::query();
-
-        // Multi-tenancy filtering
-        if ($user->type == 'super admin') {
-            // Super admin sees all assets
-        } else {
-            $query->where('created_by', $user->creatorId());
-        }
 
         // Search functionality
         if ($request->has('search')) {
@@ -84,7 +76,6 @@ class AssetController extends Controller
             'supported_date' => $request->supported_date,
             'amount' => $request->amount,
             'description' => $request->description,
-            'created_by' => Auth::user()->creatorId(),
         ]);
 
         $asset->load('creator');
@@ -101,7 +92,6 @@ class AssetController extends Controller
      */
     public function show(string $id)
     {
-        $user = Auth::user();
         $asset = Asset::with('creator')->find($id);
 
         if (!$asset) {
@@ -109,14 +99,6 @@ class AssetController extends Controller
                 'success' => false,
                 'message' => 'Asset not found'
             ], 404);
-        }
-
-        // Check access
-        if ($user->type != 'super admin' && $asset->created_by != $user->creatorId()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
         }
 
         return response()->json([
@@ -130,7 +112,6 @@ class AssetController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $user = Auth::user();
         $asset = Asset::find($id);
 
         if (!$asset) {
@@ -138,14 +119,6 @@ class AssetController extends Controller
                 'success' => false,
                 'message' => 'Asset not found'
             ], 404);
-        }
-
-        // Check access
-        if ($user->type != 'super admin' && $asset->created_by != $user->creatorId()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -185,7 +158,6 @@ class AssetController extends Controller
      */
     public function destroy(string $id)
     {
-        $user = Auth::user();
         $asset = Asset::find($id);
 
         if (!$asset) {
@@ -193,14 +165,6 @@ class AssetController extends Controller
                 'success' => false,
                 'message' => 'Asset not found'
             ], 404);
-        }
-
-        // Check access
-        if ($user->type != 'super admin' && $asset->created_by != $user->creatorId()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
         }
 
         $asset->delete();

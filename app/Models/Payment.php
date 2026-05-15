@@ -17,6 +17,7 @@ class Payment extends Model
         'amount',
         'account_id',
         'vender_id',
+        'bill_id',
         'description',
         'category_id',
         'recurring',
@@ -33,6 +34,7 @@ class Payment extends Model
             'amount' => 'decimal:2',
             'account_id' => 'integer',
             'vender_id' => 'integer',
+            'bill_id' => 'integer',
             'category_id' => 'integer',
             'payment_method' => 'integer',
             'created_by' => 'integer',
@@ -52,5 +54,10 @@ class Payment extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class, 'account_id');
+    }
+
+    public function bill(): BelongsTo
+    {
+        return $this->belongsTo(Bill::class, 'bill_id');
     }
 }

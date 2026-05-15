@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             RolesPermissionSeeder::class,
             UsersTableSeeder::class,
             ChartOfAccountsSeeder::class,
+            ContractTypeSeeder::class,
+            CustomerSeeder::class,
         ]);
     }
 }
