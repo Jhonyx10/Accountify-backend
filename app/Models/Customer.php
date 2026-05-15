@@ -13,6 +13,7 @@ class Customer extends Authenticatable
     use BelongsToCompany;
 
     protected $fillable = [
+        'company_id',
         'customer_id',
         'name',
         'email',

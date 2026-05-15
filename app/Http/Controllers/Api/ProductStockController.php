@@ -67,10 +67,10 @@ class ProductStockController extends Controller
         $stockSummary = [];
 
         foreach ($products as $product) {
-            // Calculate total stock from stock reports
+            // Calculate total stock from stock reports (invoices subtract, bills & manual additions add)
             $totalStock = StockReport::where('product_id', $product->id)
                 ->where('created_by', $creatorId)
-                ->sum(DB::raw('CASE WHEN type IN ("invoice", "bill") THEN -quantity ELSE quantity END'));
+                ->sum(DB::raw('CASE WHEN type = "invoice" THEN -quantity ELSE quantity END'));
 
             $stockSummary[] = [
                 'product_id' => $product->id,

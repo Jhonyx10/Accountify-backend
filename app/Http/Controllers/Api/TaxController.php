@@ -18,9 +18,12 @@ class TaxController extends Controller
         $query = Tax::where('created_by', $request->user()->creatorId());
 
         // Search functionality
-        if ($request->has('search')) {
+        if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
-            $query->where('name', 'LIKE', "%{$search}%");
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('type', 'LIKE', "%{$search}%");
+            });
         }
 
         // Pagination
@@ -38,6 +41,7 @@ class TaxController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'rate' => 'required|numeric|min:0|max:100',
+            'type' => 'required|string|in:Inclusive,Exclusive',
         ]);
 
         if ($validator->fails()) {
@@ -47,10 +51,11 @@ class TaxController extends Controller
         $tax = Tax::create([
             'name' => $request->name,
             'rate' => $request->rate,
+            'type' => $request->type,
             'created_by' => $request->user()->creatorId(),
         ]);
 
-        return (new TaxResource($tax->load('creator')))
+        return (new TaxResource($tax))
             ->additional(['message' => 'Tax created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -62,7 +67,6 @@ class TaxController extends Controller
     public function show(Request $request, string $id)
     {
         $tax = Tax::where('created_by', $request->user()->creatorId())
-            ->with('creator')
             ->findOrFail($id);
 
         return new TaxResource($tax);
@@ -78,15 +82,16 @@ class TaxController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'rate' => 'sometimes|required|numeric|min:0|max:100',
+            'type' => 'sometimes|required|string|in:Inclusive,Exclusive',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $tax->update($request->only(['name', 'rate']));
+        $tax->update($request->only(['name', 'rate', 'type']));
 
-        return (new TaxResource($tax->load('creator')))
+        return (new TaxResource($tax))
             ->additional(['message' => 'Tax updated successfully']);
     }
 
