@@ -13,19 +13,6 @@ class Proposal extends Model
     use HasFactory;
     use BelongsToCompany;
 
-    // Status constants
-    const STATUS_DRAFT    = 0;
-    const STATUS_SENT     = 1;
-    const STATUS_ACCEPTED = 2;
-    const STATUS_DECLINED = 3;
-
-    const STATUS_MAP = [
-        self::STATUS_DRAFT    => 'Draft',
-        self::STATUS_SENT     => 'Sent',
-        self::STATUS_ACCEPTED => 'Accepted',
-        self::STATUS_DECLINED => 'Declined',
-    ];
-
     protected $fillable = [
         'proposal_id',
         'customer_id',
