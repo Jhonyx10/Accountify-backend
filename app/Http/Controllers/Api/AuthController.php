@@ -19,42 +19,51 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:customers',
             'password' => ['required', 'confirmed', Password::min(8)],
-            'type' => 'nullable|string|in:company,super admin',
+            'referral_code' => 'nullable|string'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::create([
+        $createdBy = 0;
+
+        // Check if referral code is provided and belongs to a Customer
+        if ($request->filled('referral_code')) {
+            $customer = \App\Models\Customer::where('referral_code', $request->referral_code)->first();
+            if ($customer) {
+                // If the referral is from a specific Company's Customer, assign the user exactly to them
+                $createdBy = $customer->created_by;
+            }
+        }
+
+        $lastCustomer = \App\Models\Customer::where('created_by', $createdBy)->latest('customer_id')->first();
+        $customerId = $lastCustomer ? $lastCustomer->customer_id + 1 : 1;
+
+        $user = \App\Models\Customer::create([
+            'customer_id' => $customerId,
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'type' => $request->type ?? 'company',
             'lang' => $request->lang ?? 'en',
-            'mode' => $request->mode ?? 'light',
-            'created_by' => 0, // Self-registered
+            'created_by' => $createdBy,
+            'used_referral_code' => $request->referral_code,
             'is_active' => 1,
             'is_enable_login' => 1,
         ]);
-
-        // Assign default role
-        if ($user->type === 'company') {
-            $user->assignRole('company');
-        }
 
         // Create authentication token
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'User registered successfully',
+            'message' => 'Customer registered successfully',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'type' => $user->type,
+                'type' => 'customer',
             ],
             'access_token' => $token,
             'token_type' => 'Bearer',
@@ -75,43 +84,74 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        $credentials = $request->only('email', 'password');
+
+        // 1. Try logging in as a User (Admin/Staff)
+        if (Auth::guard('web')->attempt($credentials)) {
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user->is_active || !$user->is_enable_login) {
+                Auth::guard('web')->logout();
+                return response()->json([
+                    'message' => 'Your account has been disabled. Please contact administrator.'
+                ], 403);
+            }
+
+            $user->update(['last_login_at' => now()]);
+            $token = $user->createToken('auth_token')->plainTextToken;
+
             return response()->json([
-                'message' => 'Invalid login credentials'
-            ], 401);
+                'message' => 'Login successful',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'type' => $user->type,
+                    'avatar' => $user->avatar,
+                    'lang' => $user->lang,
+                    'mode' => $user->mode,
+                    'plan' => $user->plan,
+                    'plan_expire_date' => $user->plan_expire_date ? $user->plan_expire_date->format('Y-m-d') : null,
+                ],
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'guard' => 'web',
+            ]);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
+        // 2. If that fails, try logging in as a Customer
+        if (Auth::guard('customer')->attempt($credentials)) {
+            $customer = \App\Models\Customer::where('email', $request->email)->first();
 
-        // Check if user is active
-        if (!$user->is_active || !$user->is_enable_login) {
+            if (!$customer->is_active || !$customer->is_enable_login) {
+                Auth::guard('customer')->logout();
+                return response()->json([
+                    'message' => 'Your account has been disabled. Please contact administrator.'
+                ], 403);
+            }
+
+            $customer->update(['last_login_at' => now()]);
+            $token = $customer->createToken('auth_token')->plainTextToken;
+
             return response()->json([
-                'message' => 'Your account has been disabled. Please contact administrator.'
-            ], 403);
+                'message' => 'Login successful',
+                'user' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'type' => 'customer',
+                    'avatar' => $customer->avatar,
+                    'lang' => $customer->lang,
+                ],
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'guard' => 'customer',
+            ]);
         }
-
-        // Update last login
-        $user->update(['last_login_at' => now()]);
-
-        // Create token
-        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'type' => $user->type,
-                'avatar' => $user->avatar,
-                'lang' => $user->lang,
-                'mode' => $user->mode,
-                'plan' => $user->plan,
-                'plan_expire_date' => $user->plan_expire_date?->format('Y-m-d'),
-            ],
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-        ]);
+            'message' => 'Invalid login credentials'
+        ], 401);
     }
 
     /**
@@ -147,4 +187,3 @@ class AuthController extends Controller
         ]);
     }
 }
-

@@ -64,9 +64,7 @@ Route::get('/health', function () {
 });
 
 // Authentication routes (public)
-Route::post('/register', [AuthController::class , 'register']);
-Route::post('/login', [AuthController::class , 'login']);
-
+Route::post('/register', [AuthController::class, 'register']);
 
 // Protected routes (require authentication)
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -250,9 +248,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Webhooks
         Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'destroy']);
 
-        // User Logs
-        Route::get('users-logs', [UsersLogController::class , 'index']);
-        Route::delete('users-logs/{id}', [UsersLogController::class , 'destroy']);
+    // Referral Program
+    Route::get('referrals', [ReferralProgramController::class, 'index']);
+    Route::get('referral-settings', [ReferralProgramController::class, 'settings']);
+    Route::post('referral-settings', [ReferralProgramController::class, 'settings']);
+    Route::put('referral-settings', [ReferralProgramController::class, 'settings']);
 
         // PDF Exports
         Route::get('pdf/invoice/{id}', [PdfExportController::class , 'invoice']);

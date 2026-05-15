@@ -25,6 +25,8 @@ class CustomerResource extends JsonResource
             'is_active' => $this->is_active,
             'is_enable_login' => $this->is_enable_login,
             'balance' => $this->balance,
+            'referral_code' => $this->referral_code,
+            'referral_link' => $this->referral_link,
             'billing' => [
                 'name' => $this->billing_name,
                 'country' => $this->billing_country,

@@ -12,25 +12,71 @@ use Illuminate\Support\Facades\Auth;
 
 class ReferralProgramController extends Controller
 {
-    /**
-     * Get referral program statistics for the current user
-     */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Calculate statistics based on Referral transactions
-        $transactions = ReferralTransaction::where('referral_code', $user->referral_code)
-            ->with('getUser') // A dummy model relation
-            ->get();
+        // Customer specific dashboard view
+        if ($user instanceof \App\Models\Customer) {
+            $referrals = \App\Models\Customer::where('used_referral_code', $user->referral_code)->get();
+            $setting = ReferralSetting::first();
+            $effectiveRewardAmount = $setting ? $setting->minimum_threshold_amount : 15;
 
-        $totalEarnings = $transactions->sum('commission_amount');
+            $referralData = $referrals->map(function ($refCust) use ($effectiveRewardAmount) {
+                return [
+                    'id' => $refCust->id,
+                    'referrerName' => $refCust->name,
+                    'referralCode' => $refCust->referral_code,
+                    'referralLink' => $refCust->referral_link,
+                    'signedUpCount' => 0, // Direct referrals for a customer don't typically have nested signups tracked here
+                    'commissionEarned' => $effectiveRewardAmount,
+                    'status' => $refCust->is_active ? 'Active' : 'Inactive',
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'referral_code' => $user->referral_code,
+                    'total_earnings' => $referrals->count() * $effectiveRewardAmount,
+                    'total_referred' => $referrals->count(),
+                    'saveRewardAmount' => $effectiveRewardAmount,
+                    'transactions' => $referralData
+                ]
+            ]);
+        }
+
+        // Get customers created by the current company
+        $customers = \App\Models\Customer::where('created_by', $user->creatorId())->get();
+        $setting = ReferralSetting::first();
+        $savedRewardAmount = $setting ? $setting->minimum_threshold_amount : null;
+        $effectiveRewardAmount = $savedRewardAmount ?? 15;
+
+        $referralData = $customers->map(function ($customer) use ($effectiveRewardAmount) {
+            $signedUpCount = \App\Models\Customer::where('used_referral_code', $customer->referral_code)->count();
+            $userSignedUpCount = User::where('used_referral_code', $customer->referral_code)->count();
+            $totalSignedUp = $signedUpCount + $userSignedUpCount;
+            
+            return [
+                'id' => $customer->id,
+                'referrerName' => $customer->name,
+                'referralCode' => $customer->referral_code,
+                'referralLink' => $customer->referral_link,
+                'signedUpCount' => $totalSignedUp,
+                'commissionEarned' => $totalSignedUp * $effectiveRewardAmount,
+                'status' => $customer->is_active ? 'Active' : 'Inactive',
+            ];
+        });
+
+        $totalEarnings = $referralData->sum('commissionEarned');
+        $totalReferred = $referralData->sum('signedUpCount');
 
         $stats = [
             'referral_code' => $user->referral_code,
             'total_earnings' => $totalEarnings,
-            'total_referred' => $transactions->count(),
-            'transactions' => $transactions
+            'total_referred' => $totalReferred,
+            'saveRewardAmount' => $savedRewardAmount,
+            'transactions' => $referralData,
         ];
 
         return response()->json([
@@ -46,25 +92,20 @@ class ReferralProgramController extends Controller
     {
         $user = $request->user();
 
-        if ($user->type !== 'super admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        if ($request->isMethod('post')) {
+        if ($request->isMethod('post') || $request->isMethod('put')) {
             $request->validate([
-                'commission_percentage' => 'required|numeric|min:0|max:100',
-                'minimum_payout' => 'required|numeric|min:0',
-                'is_active' => 'required|boolean'
+                'saveRewardAmount' => 'required|numeric|min:0',
             ]);
 
-            $setting = ReferralSetting::updateOrCreate(
-                ['id' => 1],
-                [
-                    'percentage' => $request->commission_percentage,
-                    'minimum_threshold_amount' => $request->minimum_payout,
-                    'is_enable' => $request->is_active ? 1 : 0
-                ]
-            );
+            // Scopes automatically via BelongsToCompany trait, but define explicitly to be safe
+            $setting = ReferralSetting::firstOrNew(['created_by' => $user->creatorId()]);
+            if (!$setting->exists) {
+                $setting->percentage = 0;
+                $setting->guideline = '';
+            }
+            $setting->minimum_threshold_amount = $request->saveRewardAmount;
+            $setting->is_enable = $request->is_active ?? 1;
+            $setting->save();
 
             return response()->json([
                 'success' => true,

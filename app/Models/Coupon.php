@@ -12,7 +12,6 @@ class Coupon extends Model
 {
     use HasFactory;
     use BelongsToCompany;
-    use SoftDeletes;
 
     protected $fillable = [
         'name',
