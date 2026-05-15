@@ -94,6 +94,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('venders', VenderController::class);
 
     // Invoice Management
+    Route::post('invoices/{id}/send', [InvoiceController::class, 'send']);
+    Route::get('invoices/{id}/payments', [App\Http\Controllers\Api\InvoicePaymentController::class, 'index']);
+    Route::post('invoices/{id}/payments', [App\Http\Controllers\Api\InvoicePaymentController::class, 'store']);
     Route::apiResource('invoices', InvoiceController::class);
 
     // Bill Management
@@ -142,6 +145,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Proposal Management
     Route::apiResource('proposals', ProposalController::class);
+    Route::put('proposals/{id}/status', [ProposalController::class, 'updateStatus']);
+    Route::post('proposals/{id}/convert-to-invoice', [ProposalController::class, 'convertToInvoice']);
 
     // Retainer Management
     Route::apiResource('retainers', RetainerController::class);
