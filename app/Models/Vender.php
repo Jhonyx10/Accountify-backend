@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Traits\HasCustomFields;
 
 class Vender extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, HasCustomFields;
 
     protected $fillable = [
         'vender_id',
