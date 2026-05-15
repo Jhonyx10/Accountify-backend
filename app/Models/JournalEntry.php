@@ -37,4 +37,14 @@ class JournalEntry extends Model
     {
         return $this->hasMany(JournalItem::class, 'journal');
     }
+
+    public function getAmountAttribute()
+    {
+        return $this->items->sum('debit') ?? 0;
+    }
+
+    public function getFormattedJournalIdAttribute()
+    {
+        return 'JE-' . str_pad($this->journal_id, 4, '0', STR_PAD_LEFT);
+    }
 }

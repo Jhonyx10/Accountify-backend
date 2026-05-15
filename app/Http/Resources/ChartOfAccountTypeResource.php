@@ -21,6 +21,7 @@ class ChartOfAccountTypeResource extends JsonResource
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'creator' => $this->whenLoaded('creator'),
+            'sub_types' => $this->whenLoaded('subTypes'),
             'chart_of_accounts_count' => $this->whenCounted('chartOfAccounts'),
         ];
     }
