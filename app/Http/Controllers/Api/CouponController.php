@@ -5,11 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CouponResource;
 use App\Models\Coupon;
+use App\Services\CouponService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class CouponController extends Controller
 {
+    protected CouponService $couponService;
+
+    public function __construct(CouponService $couponService)
+    {
+        $this->couponService = $couponService;
+    }
+
     /**
      * Display a listing of coupons
      */
@@ -20,9 +28,9 @@ class CouponController extends Controller
         // Search by name or code
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+           $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                ->orWhere('code', 'ilike', "%{$search}%");
             });
         }
 
@@ -49,6 +57,7 @@ class CouponController extends Controller
             'limit' => 'required|integer|min:0',
             'description' => 'nullable|string',
             'is_active' => 'nullable|integer|in:0,1',
+            'expires_at' => 'nullable|date',
         ]);
 
         if ($validator->fails()) {
@@ -62,6 +71,7 @@ class CouponController extends Controller
             'limit' => $request->limit,
             'description' => $request->description,
             'is_active' => $request->is_active ?? 1,
+            'expires_at' => $request->expires_at,
         ]);
 
         return (new CouponResource($coupon))
@@ -94,6 +104,7 @@ class CouponController extends Controller
             'limit' => 'sometimes|required|integer|min:0',
             'description' => 'nullable|string',
             'is_active' => 'nullable|integer|in:0,1',
+            'expires_at' => 'nullable|date',
         ]);
 
         if ($validator->fails()) {
@@ -147,5 +158,16 @@ class CouponController extends Controller
             'data' => new CouponResource($coupon),
         ]);
     }
-}
+    /**
+     * Suggest a coupon code
+     */
+    public function suggestCode(Request $request)
+    {
+        $request->validate(['title' => 'required|string|min:3']);
+        
+        // Use the logic we discussed to create the code
+        $code = $this->couponService->generateUniqueCode($request->title);
 
+        return response()->json(['code' => $code]);
+    }
+}

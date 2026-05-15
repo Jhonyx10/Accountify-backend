@@ -223,9 +223,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('plan-requests/{id}/approve', [PlanRequestController::class , 'approve']);
         Route::apiResource('plan-requests', PlanRequestController::class);
 
-        // Orders
-        Route::post('orders/{id}/refund', [OrderController::class , 'refund']);
-        Route::apiResource('orders', OrderController::class);
+    // Coupons
+    Route::post('coupons/validate', [CouponController::class, 'validateCoupon']);
+    Route::post('coupons/suggest-code', [CouponController::class, 'suggestCode']);
+    Route::apiResource('coupons', CouponController::class);
 
         // Contract Types
         Route::apiResource('contract-types', ContractTypeController::class);
