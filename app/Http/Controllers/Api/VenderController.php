@@ -43,7 +43,7 @@ class VenderController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:venders,email',
-            'password' => 'required|string|min:6',
+            'password' => 'nullable|string|min:6',
             'contact' => 'nullable|string|max:255',
             'tax_number' => 'nullable|string|max:255',
         ]);
@@ -59,9 +59,10 @@ class VenderController extends Controller
             'vender_id' => $venderId,
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password ?? \Illuminate\Support\Str::random(12)),
             'contact' => $request->contact,
             'tax_number' => $request->tax_number,
+            'avatar' => '',
             'created_by' => $request->user()->id,
             'billing_name' => $request->billing_name,
             'billing_country' => $request->billing_country,

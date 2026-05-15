@@ -63,6 +63,8 @@ class CreditNoteController extends Controller
             'customer' => 'required|exists:customers,id',
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
+            'reference' => 'nullable|string',
+            'status' => 'required|string',
             'description' => 'nullable|string',
         ]);
 
@@ -92,6 +94,8 @@ class CreditNoteController extends Controller
             'customer',
             'amount',
             'date',
+            'reference',
+            'status',
             'description',
         ]));
 

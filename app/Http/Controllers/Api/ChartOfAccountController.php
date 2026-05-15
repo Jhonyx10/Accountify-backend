@@ -7,15 +7,19 @@ use App\Http\Resources\ChartOfAccountResource;
 use App\Models\ChartOfAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class ChartOfAccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator']);
+        $user = Auth::user();
+        $creatorId = $user->creatorId();
 
-        if ($request->user()) {
-            $query->where('created_by', $request->user()->id);
+        $query = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator', 'journalItems']);
+
+        if ($user->type != 'super admin') {
+            $query->where('created_by', $creatorId);
         }
 
         if ($request->has('type')) {
@@ -39,9 +43,13 @@ class ChartOfAccountController extends Controller
         }
 
         $perPage = $request->input('per_page', 15);
-        $accounts = $query->latest()->paginate($perPage);
-
-        return ChartOfAccountResource::collection($accounts);
+        if ($perPage == -1) {
+            $accounts = $query->orderBy('code')->get();
+            return ChartOfAccountResource::collection($accounts);
+        } else {
+            $accounts = $query->orderBy('code')->paginate($perPage);
+            return ChartOfAccountResource::collection($accounts);
+        }
     }
 
     public function store(Request $request)
@@ -66,7 +74,7 @@ class ChartOfAccountController extends Controller
             'parent' => $request->parent ?? 0,
             'is_enabled' => $request->is_enabled ?? 1,
             'description' => $request->description,
-            'created_by' => $request->user()->id,
+            'created_by' => $request->user()->creatorId(),
         ]);
 
         return (new ChartOfAccountResource($account->load(['accountType', 'accountSubType'])))
@@ -77,14 +85,32 @@ class ChartOfAccountController extends Controller
 
     public function show(string $id)
     {
-        $account = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator'])->findOrFail($id);
+        $user = Auth::user();
+        $creatorId = $user->creatorId();
+
+        $query = ChartOfAccount::with(['accountType', 'accountSubType', 'parentAccount', 'creator']);
+
+        if ($user->type != 'super admin') {
+            $query->where('created_by', $creatorId);
+        }
+
+        $account = $query->findOrFail($id);
 
         return new ChartOfAccountResource($account);
     }
 
     public function update(Request $request, string $id)
     {
-        $account = ChartOfAccount::findOrFail($id);
+        $user = Auth::user();
+        $creatorId = $user->creatorId();
+
+        $query = ChartOfAccount::query();
+
+        if ($user->type != 'super admin') {
+            $query->where('created_by', $creatorId);
+        }
+
+        $account = $query->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
@@ -95,7 +121,13 @@ class ChartOfAccountController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $account->update($request->except(['created_by']));
+        // Make sure we can set parent
+        $data = $request->except(['created_by']);
+        if ($request->has('parent')) {
+            $data['parent'] = $request->parent;
+        }
+
+        $account->update($data);
 
         return (new ChartOfAccountResource($account->load(['accountType', 'accountSubType'])))
             ->additional(['message' => 'Chart of Account updated successfully']);
@@ -103,7 +135,27 @@ class ChartOfAccountController extends Controller
 
     public function destroy(string $id)
     {
-        $account = ChartOfAccount::findOrFail($id);
+        $user = Auth::user();
+        $creatorId = $user->creatorId();
+
+        $query = ChartOfAccount::query();
+
+        if ($user->type != 'super admin') {
+            $query->where('created_by', $creatorId);
+        }
+
+        $account = $query->findOrFail($id);
+
+        // check if this account has children
+        if ($account->childrenAccounts()->count() > 0) {
+            return response()->json(['message' => 'Cannot delete account with sub-accounts.'], 422);
+        }
+
+        // check if account is used in journal items
+        if ($account->journalItems()->count() > 0) {
+            return response()->json(['message' => 'Cannot delete account with existing transactions.'], 422);
+        }
+
         $account->delete();
 
         return response()->json(['message' => 'Chart of Account deleted successfully']);

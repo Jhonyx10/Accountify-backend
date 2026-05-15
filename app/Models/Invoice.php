@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasCustomFields;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, HasCustomFields;
 
     protected $fillable = [
         'invoice_id',
@@ -21,6 +22,7 @@ class Invoice extends Model
         'shipping_display',
         'discount_apply',
         'created_by',
+        'notes',
     ];
 
     protected $casts = [
@@ -56,5 +58,10 @@ class Invoice extends Model
     public function payments()
     {
         return $this->hasMany(InvoicePayment::class, 'invoice_id');
+    }
+
+    public function creditNotes()
+    {
+        return $this->hasMany(CreditNote::class, 'invoice');
     }
 }
