@@ -64,6 +64,7 @@ Route::get('/health', function () {
 });
 
 // Authentication routes (public)
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
 // Protected routes (require authentication)

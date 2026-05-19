@@ -5,20 +5,15 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+use App\Models\Role;
 
 class UsersTableSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // 1. Superadmin (Targeting ID 1)
         $superadmin = User::firstOrCreate([
-            'id' => 1, 
-            'email' => 'superadmin@example.com'
+            'id' => 1,
+            'email' => 'superadmin@example.com',
         ], [
             'name' => 'Super Admin',
             'password' => Hash::make('password'),
@@ -27,20 +22,14 @@ class UsersTableSeeder extends Seeder
             'created_by' => 0,
         ]);
 
-        $superAdminRole = Role::where('name', 'super admin')->first();
-        
-        if ($superAdminRole) {
-            // NEW: Give the Super Admin role all existing permissions
-            // This ensures getAllPermissions() actually returns a list for Vue
-            $permissions = Permission::all();
-            $superAdminRole->syncPermissions($permissions);
+        $superAdminRole = Role::withoutGlobalScopes()->where('name', 'super admin')->first();
 
-            $superadmin->assignRole($superAdminRole);
+        if ($superAdminRole) {
+            $superadmin->syncRoles([$superAdminRole]);
         }
 
-        // 2. Default Company
         $company = User::firstOrCreate([
-            'email' => 'company@example.com'
+            'email' => 'company@example.com',
         ], [
             'name' => 'Default Company',
             'password' => Hash::make('password'),
@@ -50,12 +39,12 @@ class UsersTableSeeder extends Seeder
             'plan' => 1,
         ]);
 
-        $companyRole = Role::where('name', 'company')->first();
+        $companyRole = Role::withoutGlobalScopes()
+            ->whereIn('name', ['company', 'Company', 'company admin'])
+            ->first();
+
         if ($companyRole) {
-            // Optional: If you want the default company to have specific permissions
-            // $companyRole->syncPermissions(['manage users', 'view reports']);
-            
-            $company->assignRole($companyRole);
+            $company->syncRoles([$companyRole]);
         }
     }
 }

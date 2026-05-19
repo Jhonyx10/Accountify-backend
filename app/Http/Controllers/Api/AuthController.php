@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\PermissionNormalizer;
+use App\Support\UserRoleResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -99,6 +101,7 @@ class AuthController extends Controller
             }
 
             $user->update(['last_login_at' => now()]);
+            UserRoleResolver::ensureDefaultRole($user);
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
@@ -113,7 +116,7 @@ class AuthController extends Controller
                     'mode' => $user->mode,
                     'plan' => $user->plan,
                     'plan_expire_date' => $user->plan_expire_date ? $user->plan_expire_date->format('Y-m-d') : null,
-                    'permissions' => $user->getAllPermissions()->pluck('name')->unique()->values(),
+                    'permissions' => PermissionNormalizer::forUser($user),
                     'roles' => $user->getRoleNames(),
                 ],
                 'access_token' => $token,
@@ -174,20 +177,22 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
             'user' => [
-                'id' => $request->user()->id,
-                'name' => $request->user()->name,
-                'email' => $request->user()->email,
-                'type' => $request->user()->type,
-                'avatar' => $request->user()->avatar,
-                'lang' => $request->user()->lang,
-                'mode' => $request->user()->mode,
-                'plan' => $request->user()->plan,
-                'plan_expire_date' => $request->user()->plan_expire_date?->format('Y-m-d'),
-                'created_at' => $request->user()->created_at?->format('Y-m-d H:i:s'),
-                'permissions' => $request->user()->getAllPermissions()->pluck('name')->unique()->values(),
-                'roles' => $request->user()->getRoleNames(),
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'type' => $user->type,
+                'avatar' => $user->avatar,
+                'lang' => $user->lang,
+                'mode' => $user->mode,
+                'plan' => $user->plan,
+                'plan_expire_date' => $user->plan_expire_date?->format('Y-m-d'),
+                'created_at' => $user->created_at?->format('Y-m-d H:i:s'),
+                'permissions' => PermissionNormalizer::forUser($user),
+                'roles' => $user->getRoleNames(),
             ]
         ]);
     }

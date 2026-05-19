@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-use App\Models\Traits\BelongsToCompany;
+use App\Traits\BelongsToCompany;
 
 class Contract extends Model
 {

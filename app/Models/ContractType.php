@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-use App\Models\Traits\BelongsToCompany;
+use App\Traits\BelongsToCompany;
 
 class ContractType extends Model
 {
