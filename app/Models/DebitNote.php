@@ -18,6 +18,7 @@ class DebitNote extends Model
         'amount',
         'date',
         'description',
+        'created_by',
     ];
 
     protected function casts(): array

@@ -19,8 +19,19 @@ class POController extends Controller
     {
         $query = PurchaseOrder::query();
 
-        if ($request->user()) {
-            $query->where('created_by', $request->user()->id);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('vender_id')) {
+            $query->where('vender_id', $request->vender_id);
+        }
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('purchase_order_id', 'like', "%{$search}%");
+            });
         }
 
         $perPage = $request->input('per_page', 15);
@@ -31,12 +42,15 @@ class POController extends Controller
 
     public function store(Request $request)
     {
+        \Illuminate\Support\Facades\Log::info('Creating new purchase order with data:', $request->all());
+
         $validator = Validator::make($request->all(), [
             'vender_id' => 'required|integer',
             'po_date' => 'required|date',
             'delivery_date' => 'nullable|date',
             'status' => 'nullable|integer',
             'category_id' => 'nullable|integer',
+            'notes' => 'nullable|string',
             'items' => 'required|array',
             'items.*.product_id' => 'required|integer',
             'items.*.quantity' => 'required|numeric',
@@ -87,6 +101,7 @@ class POController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('PO Store exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json(['message' => 'Error creating PO', 'error' => $e->getMessage()], 500);
         }
     }

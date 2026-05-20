@@ -23,6 +23,7 @@ class WriteCheckResource extends JsonResource
             'payee_id'         => $this->payee_id,
             'payee_type'       => $this->payee_type,
             'amount'           => (float) $this->amount,
+            'amount_in_words'  => $this->amount_in_words,
             'description'      => $this->description,
             'bank_account_id'  => $this->bank_account_id,
             'bank_account'     => $bankAccountLabel,

@@ -61,6 +61,8 @@ class RetainerController extends Controller
      */
     public function store(Request $request)
     {
+        \Illuminate\Support\Facades\Log::info('Creating new retainer with data:', $request->all());
+
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'issue_date' => 'required|date',

@@ -58,33 +58,44 @@ class ProductStockController extends Controller
         $user = Auth::user();
         $creatorId = $user->creatorId();
 
-        // Get all products with type 'product'
-        $productsQuery = ProductService::where('created_by', $creatorId)
-            ->where('type', 'product');
+        // 1. Build a subquery to aggregate stock balances per product
+        $stockSubquery = StockReport::select('product_id')
+            ->selectRaw("SUM(CASE WHEN type = 'invoice' THEN -quantity ELSE quantity END) as computed_stock")
+            ->where('created_by', $creatorId)
+            ->groupBy('product_id');
 
-        $products = $productsQuery->get();
+        // 2. Fetch products and dynamically pull in the calculated stock from our subquery
+        $products = ProductService::where('created_by', $creatorId)
+            ->where('type', 'product')
+            ->leftJoinSub($stockSubquery, 'stock_totals', function ($join) {
+                $join->on('product_services.id', '=', 'stock_totals.product_id');
+            })
+            ->select([
+                'product_services.id',
+                'product_services.name',
+                'product_services.sku',
+                'product_services.sale_price',
+                'product_services.purchase_price',
+                // Fallback to 0 if no stock reports exist yet for the item
+                DB::raw('COALESCE(stock_totals.computed_stock, 0) as current_stock')
+            ])
+            ->get();
 
-        $stockSummary = [];
-
-        foreach ($products as $product) {
-            // Calculate total stock from stock reports (invoices subtract, bills & manual additions add)
-            $totalStock = StockReport::where('product_id', $product->id)
-                ->where('created_by', $creatorId)
-                ->sum(DB::raw('CASE WHEN type = "invoice" THEN -quantity ELSE quantity END'));
-
-            $stockSummary[] = [
-                'product_id' => $product->id,
-                'product_name' => $product->name,
-                'product_sku' => $product->sku,
-                'current_stock' => (int) $totalStock,
-                'sale_price' => (float) $product->sale_price,
+        // 3. Transform data efficiently into your frontend structure
+        $stockSummary = $products->map(function ($product) {
+            return [
+                'product_id'     => $product->id,
+                'product_name'   => $product->name,
+                'product_sku'    => $product->sku,
+                'current_stock'  => (int) $product->current_stock,
+                'sale_price'     => (float) $product->sale_price,
                 'purchase_price' => (float) $product->purchase_price,
             ];
-        }
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $stockSummary,
+            'data'    => $stockSummary,
         ]);
     }
 

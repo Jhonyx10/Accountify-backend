@@ -27,6 +27,7 @@ class BillResource extends JsonResource
             'shipping_display' => $this->shipping_display,
             'discount_apply' => $this->discount_apply,
             'amount' => $this->total_amount,
+            'notes' => $this->notes,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'vender' => $this->whenLoaded('vender', function () {
@@ -40,6 +41,13 @@ class BillResource extends JsonResource
                 return [
                     'id' => $this->creator->id,
                     'name' => $this->creator->name,
+                ];
+            }),
+            'category' => $this->whenLoaded('category', function () {
+                return [
+                    'id' => $this->category->id,
+                    'name' => $this->category->name,
+                    'type' => $this->category->type,
                 ];
             }),
             'products' => $this->whenLoaded('products'),

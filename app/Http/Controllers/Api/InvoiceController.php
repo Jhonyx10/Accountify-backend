@@ -7,6 +7,8 @@ use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceController extends Controller
 {
@@ -28,7 +30,7 @@ class InvoiceController extends Controller
         }
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -72,10 +74,10 @@ class InvoiceController extends Controller
             'shipping_display' => 'nullable|boolean',
             'discount_apply' => 'nullable|boolean',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|integer',
+            'items.*.item' => 'nullable|integer',
             'items.*.quantity' => 'required|numeric|min:1',
             'items.*.price' => 'required|numeric|min:0',
-            'items.*.tax_rate' => 'nullable|numeric|min:0',
+            'items.*.tax' => 'nullable|numeric|min:0',
             'items.*.description' => 'nullable|string',
         ]);
 
@@ -83,55 +85,73 @@ class InvoiceController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Generate invoice_id
-        $lastInvoice = Invoice::where('created_by', $request->user()->id)->latest('invoice_id')->first();
-        $invoiceId = $lastInvoice ? $lastInvoice->invoice_id + 1 : 1;
+        DB::beginTransaction();
 
-        $invoice = Invoice::create([
-            'invoice_id' => $invoiceId,
-            'customer_id' => $request->customer_id,
-            'issue_date' => $request->issue_date,
-            'due_date' => $request->due_date,
-            'send_date' => $request->send_date,
-            'category_id' => $request->category_id,
-            'ref_number' => $request->ref_number,
-            'status' => $request->status ?? 0,
-            'notes' => $request->notes,
-            'shipping_display' => $request->shipping_display ?? 1,
-            'discount_apply' => $request->discount_apply ?? 0,
-            'created_by' => $request->user()->id,
-        ]);
+        try {
+            // Generate invoice_id
+            $lastInvoice = Invoice::where('created_by', $request->user()->id)->latest('invoice_id')->first();
+            $invoiceId = $lastInvoice ? $lastInvoice->invoice_id + 1 : 1;
 
-        if ($request->has('items') && is_array($request->items)) {
-            foreach ($request->items as $item) {
-                if (empty($item['item'])) continue;
+            $invoice = Invoice::create([
+                'invoice_id' => $invoiceId,
+                'customer_id' => $request->customer_id,
+                'issue_date' => $request->issue_date,
+                'due_date' => $request->due_date,
+                'send_date' => $request->send_date,
+                'category_id' => $request->category_id,
+                'ref_number' => $request->ref_number,
+                'status' => $request->status ?? 0,
+                'notes' => $request->notes,
+                'shipping_display' => $request->shipping_display ?? 1,
+                'discount_apply' => $request->discount_apply ?? 0,
+                'created_by' => $request->user()->id,
+            ]);
 
-                \App\Models\InvoiceProduct::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $item['item'],
-                    'quantity' => $item['quantity'] ?? 1,
-                    'price' => $item['price'] ?? 0,
-                    'tax' => $item['tax'] ?? 0,
-                    'discount' => $item['discount'] ?? 0,
-                    'description' => $item['description'] ?? '',
-                ]);
+            if ($request->has('items') && is_array($request->items)) {
+                foreach ($request->items as $item) {
+                    if (empty($item['item'])) continue;
 
-                // Decrease stock
-                \App\Models\StockReport::create([
-                    'product_id' => $item['item'],
-                    'quantity' => $item['quantity'] ?? 1,
-                    'type' => 'invoice',
-                    'type_id' => $invoice->id,
-                    'description' => 'Invoice ' . $invoice->invoice_id,
-                    'created_by' => $request->user()->id,
-                ]);
+                    \App\Models\InvoiceProduct::create([
+                        'invoice_id' => $invoice->id,
+                        'product_id' => $item['item'],
+                        'quantity' => $item['quantity'] ?? 1,
+                        'price' => $item['price'] ?? 0,
+                        'tax' => $item['tax'] ?? 0,
+                        'discount' => $item['discount'] ?? 0,
+                        'description' => $item['description'] ?? '',
+                    ]);
+
+                    // Decrease stock
+                    \App\Models\StockReport::create([
+                        'product_id' => $item['item'],
+                        'quantity' => (int) ($item['quantity'] ?? 1),
+                        'type' => 'invoice',
+                        'type_id' => $invoice->id,
+                        'description' => 'Invoice ' . $invoice->invoice_id,
+                        'created_by' => $request->user()->id,
+                    ]);
+                }
             }
-        }
 
-        return (new InvoiceResource($invoice->load(['customer', 'creator'])))
-            ->additional(['message' => 'Invoice created successfully'])
-            ->response()
-            ->setStatusCode(201);
+            DB::commit();
+
+            return (new InvoiceResource($invoice->load(['customer', 'creator'])))
+                ->additional(['message' => 'Invoice created successfully'])
+                ->response()
+                ->setStatusCode(201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error storing invoice: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to create invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -139,7 +159,7 @@ class InvoiceController extends Controller
      */
     public function show(string $id)
     {
-        $invoice = Invoice::with(['customer', 'creator', 'products', 'payments', 'creditNotes'])->findOrFail($id);
+        $invoice = Invoice::with(['customer', 'creator', 'products', 'payments.account', 'creditNotes'])->findOrFail($id);
 
         return new InvoiceResource($invoice);
     }
@@ -159,47 +179,67 @@ class InvoiceController extends Controller
             'status' => 'sometimes|integer',
             'notes' => 'nullable|string',
             'items' => 'sometimes|array',
-            'items.*.product_id' => 'nullable|integer',
+            'items.*.item' => 'nullable|integer',
             'items.*.quantity' => 'required_with:items|numeric|min:1',
             'items.*.price' => 'required_with:items|numeric|min:0',
+            'items.*.tax' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $invoice->update($request->except(['invoice_id', 'created_by', 'items']));
+        DB::beginTransaction();
 
-        if ($request->has('items') && is_array($request->items)) {
-            \App\Models\StockReport::where('type', 'invoice')->where('type_id', $invoice->id)->delete();
-            \App\Models\InvoiceProduct::where('invoice_id', $invoice->id)->delete();
+        try {
+            $invoice->update($request->except(['invoice_id', 'created_by', 'items']));
 
-            foreach ($request->items as $item) {
-                if (empty($item['item'])) continue;
+            if ($request->has('items') && is_array($request->items)) {
+                \App\Models\StockReport::where('type', 'invoice')->where('type_id', $invoice->id)->delete();
+                \App\Models\InvoiceProduct::where('invoice_id', $invoice->id)->delete();
 
-                \App\Models\InvoiceProduct::create([
-                    'invoice_id' => $invoice->id,
-                    'product_id' => $item['item'],
-                    'quantity' => $item['quantity'] ?? 1,
-                    'price' => $item['price'] ?? 0,
-                    'tax' => $item['tax'] ?? 0,
-                    'discount' => $item['discount'] ?? 0,
-                    'description' => $item['description'] ?? '',
-                ]);
+                foreach ($request->items as $item) {
+                    if (empty($item['item'])) continue;
 
-                \App\Models\StockReport::create([
-                    'product_id' => $item['item'],
-                    'quantity' => $item['quantity'] ?? 1,
-                    'type' => 'invoice',
-                    'type_id' => $invoice->id,
-                    'description' => 'Invoice ' . $invoice->invoice_id . ' Update',
-                    'created_by' => $request->user()->id,
-                ]);
+                    \App\Models\InvoiceProduct::create([
+                        'invoice_id' => $invoice->id,
+                        'product_id' => $item['item'],
+                        'quantity' => $item['quantity'] ?? 1,
+                        'price' => $item['price'] ?? 0,
+                        'tax' => $item['tax'] ?? 0,
+                        'discount' => $item['discount'] ?? 0,
+                        'description' => $item['description'] ?? '',
+                    ]);
+
+                    \App\Models\StockReport::create([
+                        'product_id' => $item['item'],
+                        'quantity' => (int) ($item['quantity'] ?? 1),
+                        'type' => 'invoice',
+                        'type_id' => $invoice->id,
+                        'description' => 'Invoice ' . $invoice->invoice_id . ' Update',
+                        'created_by' => $request->user()->id,
+                    ]);
+                }
             }
-        }
 
-        return (new InvoiceResource($invoice->load(['customer', 'creator'])))
-            ->additional(['message' => 'Invoice updated successfully']);
+            DB::commit();
+
+            return (new InvoiceResource($invoice->load(['customer', 'creator'])))
+                ->additional(['message' => 'Invoice updated successfully']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error updating invoice: ' . $e->getMessage(), [
+                'id' => $id,
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to update invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -208,15 +248,33 @@ class InvoiceController extends Controller
     public function destroy(string $id)
     {
         $invoice = Invoice::findOrFail($id);
-        
-        \App\Models\StockReport::where('type', 'invoice')->where('type_id', $invoice->id)->delete();
-        \App\Models\InvoiceProduct::where('invoice_id', $invoice->id)->delete();
-        
-        $invoice->delete();
 
-        return response()->json([
-            'message' => 'Invoice deleted successfully'
-        ]);
+        DB::beginTransaction();
+
+        try {
+            \App\Models\StockReport::where('type', 'invoice')->where('type_id', $invoice->id)->delete();
+            \App\Models\InvoiceProduct::where('invoice_id', $invoice->id)->delete();
+            
+            $invoice->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Invoice deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error deleting invoice: ' . $e->getMessage(), [
+                'id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to delete invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

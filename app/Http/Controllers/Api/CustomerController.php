@@ -73,11 +73,11 @@ class CustomerController extends Controller
 
         // Generate customer_id
         $companyId = $request->user()->creatorId();
-        $lastCustomer = Customer::where('company_id', $companyId)->latest('customer_id')->first();
+        $lastCustomer = Customer::where('created_by', $companyId)->latest('customer_id')->first();
         $customerId = $lastCustomer ? $lastCustomer->customer_id + 1 : 1;
 
         $customer = Customer::create([
-            'company_id' => $companyId,
+            'created_by' => $companyId,
             'customer_id' => $customerId,
             'name' => $request->name,
             'email' => $request->email,
@@ -111,7 +111,7 @@ class CustomerController extends Controller
      */
     public function show(Request $request, string $id)
     {
-        $customer = Customer::where('company_id', $request->user()->creatorId())
+        $customer = Customer::where('created_by', $request->user()->creatorId())
             ->with(['creator', 'invoices', 'proposals', 'retainers'])
             ->findOrFail($id);
 
@@ -123,7 +123,7 @@ class CustomerController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $customer = Customer::where('company_id', $request->user()->creatorId())->findOrFail($id);
+        $customer = Customer::where('created_by', $request->user()->creatorId())->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
@@ -155,7 +155,7 @@ class CustomerController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        $customer = Customer::where('company_id', $request->user()->creatorId())->findOrFail($id);
+        $customer = Customer::where('created_by', $request->user()->creatorId())->findOrFail($id);
         $customer->delete();
 
         return response()->json([
