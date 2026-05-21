@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RoleResource;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
@@ -16,10 +16,19 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
+        // return response()->json([
+        //     'config_model' => config('permission.models.model'),
+        //     'config_role' => config('permission.models.role'),
+        // ]);
+
         $user = $request->user();
 
-        // Filter roles by creator
-        $query = Role::where('created_by', $user->creatorId());
+        // Tenant roles + system template roles (created_by = 0)
+        $query = Role::withoutGlobalScopes()
+            ->where(function ($q) use ($user) {
+                $q->where('created_by', $user->creatorId())
+                    ->orWhere('created_by', 0);
+            });
 
         // Search functionality
         if ($request->has('search')) {
@@ -71,7 +80,7 @@ class RoleController extends Controller
      */
     public function show(Request $request, string $id)
     {
-        $role = Role::where('created_by', $request->user()->creatorId())
+        $role = $this->tenantRolesQuery($request)
             ->with('permissions')
             ->withCount(['permissions', 'users'])
             ->findOrFail($id);
@@ -84,7 +93,13 @@ class RoleController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $role = Role::where('created_by', $request->user()->creatorId())->findOrFail($id);
+        $role = $this->tenantRolesQuery($request)->findOrFail($id);
+
+        if ($role->created_by === 0 && $request->user()->type !== 'super admin') {
+            return response()->json([
+                'message' => 'Cannot modify system roles',
+            ], 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255|unique:roles,name,' . $id,
@@ -114,7 +129,14 @@ class RoleController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        $role = Role::where('created_by', $request->user()->creatorId())->findOrFail($id);
+        $role = $this->tenantRolesQuery($request)->findOrFail($id);
+
+        // Prevent deleting system template roles
+        if ($role->created_by === 0) {
+            return response()->json([
+                'message' => 'Cannot delete system roles',
+            ], 403);
+        }
 
         // Check if role is assigned to any users
         if ($role->users()->count() > 0) {
@@ -140,5 +162,16 @@ class RoleController extends Controller
         return response()->json([
             'data' => $permissions
         ]);
+    }
+
+    private function tenantRolesQuery(Request $request)
+    {
+        $user = $request->user();
+
+        return Role::withoutGlobalScopes()
+            ->where(function ($q) use ($user) {
+                $q->where('created_by', $user->creatorId())
+                    ->orWhere('created_by', 0);
+            });
     }
 }

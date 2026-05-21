@@ -17,6 +17,7 @@ class Customer extends Authenticatable
     use HasFactory;
     use BelongsToCompany;
     use Notifiable;
+    
 
     protected static function boot()
     {
@@ -86,6 +87,14 @@ class Customer extends Authenticatable
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the creator ID for multi-tenancy
+     */
+    public function creatorId()
+    {
+        return $this->created_by;
     }
 
     public function invoices()

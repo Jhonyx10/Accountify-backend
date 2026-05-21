@@ -12,7 +12,7 @@ class RevenueController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Revenue::with(['customer', 'account', 'creator']);
+        $query = Revenue::with(['customer', 'account', 'category', 'creator']);
 
         if ($request->user()) {
             $query->where('created_by', $request->user()->id);
@@ -73,7 +73,7 @@ class RevenueController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        return (new RevenueResource($revenue->load(['customer', 'account'])))
+        return (new RevenueResource($revenue->load(['customer', 'account', 'category'])))
             ->additional(['message' => 'Revenue created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -81,7 +81,7 @@ class RevenueController extends Controller
 
     public function show(string $id)
     {
-        $revenue = Revenue::with(['customer', 'account', 'creator'])->findOrFail($id);
+        $revenue = Revenue::with(['customer', 'account', 'category', 'creator'])->findOrFail($id);
 
         return new RevenueResource($revenue);
     }
@@ -101,7 +101,7 @@ class RevenueController extends Controller
 
         $revenue->update($request->except(['created_by']));
 
-        return (new RevenueResource($revenue->load(['customer', 'account'])))
+        return (new RevenueResource($revenue->load(['customer', 'account', 'category'])))
             ->additional(['message' => 'Revenue updated successfully']);
     }
 

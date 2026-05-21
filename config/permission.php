@@ -24,7 +24,13 @@ return [
          * `Spatie\Permission\Contracts\Role` contract.
          */
 
-        'role' => Spatie\Permission\Models\Role::class,
+        'role' => App\Models\Role::class,
+
+        /*
+        * This is the culprit! Ensure this points to your User model.
+        * If this is null or points to a class that doesn't exist, you get the 500 error.
+        */
+        'model' => App\Models\User::class,
 
     ],
 

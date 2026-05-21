@@ -10,6 +10,7 @@ use App\Models\Proposal;
 use App\Models\ProposalProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ProposalController extends Controller
@@ -84,12 +85,16 @@ class ProposalController extends Controller
             'items.*.product_id' => 'required|exists:product_services,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.price' => 'required|numeric|min:0',
-            'items.*.tax' => 'nullable|string',
+            'items.*.tax' => 'nullable|numeric',
             'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.description' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
+            Log::error('Proposal Validation Failed', [
+            'errors' => $validator->errors()->toArray(),
+            'payload' => $request->all()
+        ]);
             return response()->json(['errors' => $validator->errors()], 422);
         }
 

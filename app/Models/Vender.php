@@ -60,6 +60,14 @@ class Vender extends Authenticatable
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Get the creator ID for multi-tenancy
+     */
+    public function creatorId()
+    {
+        return $this->created_by;
+    }
+
     public function bills()
     {
         return $this->hasMany(Bill::class, 'vender_id');

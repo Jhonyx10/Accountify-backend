@@ -52,4 +52,9 @@ class Revenue extends Model
     {
         return $this->belongsTo(BankAccount::class, 'account_id');
     }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
 }

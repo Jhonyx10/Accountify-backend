@@ -4,12 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\CustomFieldValue;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasCustomFields;
 
 class ProductService extends Model
 {
     use HasFactory;
     use BelongsToCompany;
+    use HasCustomFields;
 
     protected $fillable = [
         'name',
@@ -41,7 +44,7 @@ class ProductService extends Model
 
     public function category()
     {
-        return $this->belongsTo(ProductServiceCategory::class, 'category_id');
+        return $this->belongsTo(Category::class, 'category_id');
     }
 
     public function unit()
@@ -62,5 +65,27 @@ class ProductService extends Model
     public function taxes()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
+    }
+
+    public function customFieldValues()
+    {
+        // We point to CustomFieldValue and tell Laravel that 'record_id' matches our product ID
+        return $this->hasMany(CustomFieldValue::class, 'record_id');
+    }
+
+    public function syncCustomFields(array $customFields)
+    {
+        // First, clear out old values for this product record to prevent duplicates
+        $this->customFieldValues()->delete();
+
+        // Loop through the new values and save them
+        foreach ($customFields as $fieldId => $value) {
+            if (!is_null($value) && $value !== '') {
+                $this->customFieldValues()->create([
+                    'field_id'  => $fieldId,
+                    'value'     => $value,
+                ]);
+            }
+        }
     }
 }

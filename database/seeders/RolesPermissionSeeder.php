@@ -2,30 +2,40 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
 class RolesPermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $permissions = [
-            '$str'
-        ];
+        Permission::whereIn('name', ['view dashboard', 'manage dashboard'])->delete();
 
-        foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission);
+        foreach (PermissionCatalog::all() as $permission) {
+            Permission::findOrCreate($permission, 'web');
         }
 
-        $superAdminRole = Role::findOrCreate('superadmin');
-        $companyAdminRole = Role::findOrCreate('company admin');
-        $staffRole = Role::findOrCreate('staff');
+        $systemRoles = [
+            'super admin' => PermissionCatalog::forRole('super admin'),
+            'company' => PermissionCatalog::forRole('company'),
+            'staff' => PermissionCatalog::forRole('staff'),
+        ];
 
-        $superAdminRole->givePermissionTo(Permission::all());
-        $companyAdminRole->givePermissionTo(Permission::all());
+        foreach ($systemRoles as $name => $permissions) {
+            $role = Role::withoutGlobalScopes()->firstOrCreate(
+                ['name' => $name, 'guard_name' => 'web'],
+                ['created_by' => 0]
+            );
+
+            if (!$role->created_by) {
+                $role->update(['created_by' => 0]);
+            }
+
+            $role->syncPermissions($permissions);
+        }
     }
 }

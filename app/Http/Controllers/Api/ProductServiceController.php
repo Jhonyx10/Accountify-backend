@@ -7,6 +7,7 @@ use App\Http\Resources\ProductServiceResource;
 use App\Models\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class ProductServiceController extends Controller
 {
@@ -41,25 +42,34 @@ class ProductServiceController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'sku' => 'required|string|max:255|unique:product_services,sku',
-            'sale_price' => 'required|numeric|min:0',
-            'purchase_price' => 'required|numeric|min:0',
-            'quantity' => 'nullable|integer|min:0',
-            'type' => 'required|string|in:product,service',
-            'category_id' => 'nullable|integer',
-            'unit_id' => 'nullable|integer',
-            'sale_chartaccount_id' => 'nullable|integer',
-            'expense_chartaccount_id' => 'nullable|integer',
-            'custom_fields' => 'nullable|array',
+{
+    $validator = Validator::make($request->all(), [
+        'name' => 'required|string|max:255',
+        'sku' => 'required|string|max:255|unique:product_services,sku',
+        'sale_price' => 'required|numeric|min:0',
+        'purchase_price' => 'nullable|numeric|min:0',
+        'quantity' => 'nullable|integer|min:0',
+        'type' => 'required|string|in:product,service',
+        'tax_id' => 'required|exists:taxes,id',
+        'category_id' => 'nullable|exists:categories,id',
+        'unit_id' => 'nullable|exists:product_service_units,id',
+        'sale_chartaccount_id' => 'nullable|exists:chart_of_accounts,id',
+        'expense_chartaccount_id' => 'nullable|exists:chart_of_accounts,id',
+        'custom_fields' => 'nullable|array',
+    ]);
+
+    if ($validator->fails()) {
+        // Log validation failures to track down bad frontend payloads
+        Log::warning('Product creation validation failed', [
+            'user_id' => $request->user()?->id,
+            'errors'  => $validator->errors()->toArray(),
+            'payload' => $request->except(['password']), // Protect sensitive data if any exists
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
 
+    try {
         $product = ProductService::create([
             'name' => $request->name,
             'sku' => $request->sku,
@@ -80,11 +90,34 @@ class ProductServiceController extends Controller
             $product->syncCustomFields($request->custom_fields);
         }
 
+        // Log successful creation
+        Log::info('Product/Service created successfully', [
+            'product_id' => $product->id,
+            'sku'        => $product->sku,
+            'created_by' => $request->user()->id,
+        ]);
+
         return (new ProductServiceResource($product->load(['category', 'unit'])))
             ->additional(['message' => 'Product/Service created successfully'])
             ->response()
             ->setStatusCode(201);
+
+    } catch (\Exception $e) {
+        // Catch database errors, column exceptions (like the company_id error!), or code crashes
+        Log::error('Failed to create Product/Service due to an exception', [
+            'user_id' => $request->user()?->id,
+            'message' => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine(),
+            'payload' => $request->all(),
+        ]);
+
+        return response()->json([
+            'message' => 'An error occurred while creating the product.',
+            'error'   => config('app.debug') ? $e->getMessage() : 'Internal Server Error'
+        ], 500);
     }
+}
 
     public function show(string $id)
     {

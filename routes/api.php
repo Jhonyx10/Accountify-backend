@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\DebitNoteController;
 use App\Http\Controllers\Api\EmailTemplateController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\InvoicePaymentController;
 use App\Http\Controllers\Api\JournalEntryController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\NotificationTemplateController;
@@ -64,6 +65,7 @@ Route::get('/health', function () {
 });
 
 // Authentication routes (public)
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
 // Protected routes (require authentication)
@@ -100,6 +102,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Invoice Management
         Route::apiResource('invoices', InvoiceController::class);
+        Route::get('invoices/{id}/payments', [InvoicePaymentController::class, 'index']);
+        Route::post('invoices/{id}/payments', [InvoicePaymentController::class, 'store']);
 
         // Bill Management
         Route::apiResource('bills', BillController::class);
@@ -199,6 +203,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Chart of Account Types
         Route::apiResource('chart-of-account-types', ChartOfAccountTypeController::class);
+        Route::apiResource('chart-of-account-sub-types', ChartOfAccountSubTypeController::class);
 
         // System Settings
         Route::get('settings/all', [SystemController::class , 'getSettings']);

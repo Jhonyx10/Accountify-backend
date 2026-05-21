@@ -16,12 +16,26 @@ class CompanyScope implements Scope
     {
         if (Auth::check()) {
 
-            // Super admins see everything
-            if (Auth::user()->type === 'super admin') {
+            $user = Auth::user();
+
+            // 1. If the user is a Super Admin, skip the scoping entirely
+            if ($user->type === 'super admin') {
                 return;
             }
 
-            $builder->where($model->getTable() . '.created_by', Auth::user()->creatorId());
+            // 2. Roles: include system template roles (created_by = 0) for Spatie lookups
+            if ($model instanceof \App\Models\Role) {
+                $builder->where(function ($q) use ($model, $user) {
+                    $table = $model->getTable();
+                    $q->where("{$table}.created_by", $user->creatorId())
+                        ->orWhere("{$table}.created_by", 0);
+                });
+
+                return;
+            }
+
+            // 3. Apply the tenant filter for everyone else
+            $builder->where($model->getTable() . '.created_by', $user->creatorId());
         }
     }
 }

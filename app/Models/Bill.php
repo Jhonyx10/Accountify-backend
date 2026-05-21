@@ -22,6 +22,7 @@ class Bill extends Model
         'send_date',
         'discount_apply',
         'category_id',
+        'notes',
         'created_by',
     ];
 
@@ -47,7 +48,7 @@ class Bill extends Model
 
     public function category()
     {
-        return $this->belongsTo(ProductServiceCategory::class, 'category_id');
+        return $this->belongsTo(Category::class, 'category_id');
     }
 
     public function products()

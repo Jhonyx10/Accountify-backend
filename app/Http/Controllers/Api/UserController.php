@@ -21,7 +21,7 @@ class UserController extends Controller
 
         // Super admin can see all users, company users see their own users
         if ($user->type === 'super admin') {
-            $query = User::query();
+            $query = User::query()->orderByDesc('created_at');
         } else {
             $query = User::where('created_by', $user->creatorId())
                 ->orWhere('id', $user->creatorId());
